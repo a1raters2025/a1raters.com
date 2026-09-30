@@ -73,7 +73,24 @@ let userSchema = new mongoose.Schema({
     },
     verificationTokenExpires: {
         type: Date
-    }
+    },
+
+    lastLoginAt: {
+        type: Date,
+        default: null,
+    },
+    lastLoginIp: {
+        type: String,
+        default: null,
+    },
+    lastSeenAt: {
+        type: Date,
+        default: null,
+    },
+    loginCount: {
+        type: Number,
+        default: 0,
+    },
 
 }, 
 {

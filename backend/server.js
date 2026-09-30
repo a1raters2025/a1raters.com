@@ -12,6 +12,8 @@ import reportRouter from "./routes/reportRoutes.js"
 import invoiceRouter from "./routes/invoiceRoutes.js"
 import testHistoryRouter from "./routes/testHistoryRoutes.js"
 import clientRouter from "./routes/clientRoutes.js"
+import adminRouter from "./routes/adminRoutes.js"
+import activityLogger from "./middlewares/activityLogger.js"
 import morgan from "morgan"
 import connect from "./utils/db.js"
 import cors from "cors"
@@ -100,13 +102,20 @@ app.use(morgan('dev'))
 app.use(cookieParser())
 app.use(limiter)
 
+app.use(activityLogger)
+
 app.use("/api/v1/user", authLimiter, userRouter)
 app.use("/api/v1/tasks", taskRouter)
 app.use("/api/v1/reports", reportRouter)
 app.use("/api/v1/invoices", invoiceRouter)
 app.use("/api/v1/test-history", testHistoryRouter)
 app.use("/api/v1/client", clientRouter)
+app.use("/api/v1/admin", adminRouter)
 app.use("/api/v1/files", uploadRoutes);
+
+app.use((req, res) => {
+    res.status(404).json({ status: 'fail', message: 'Route not found' });
+});
 
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({

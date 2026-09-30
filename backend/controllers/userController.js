@@ -6,6 +6,7 @@ import AppError from '../errors/AppError.js';
 import bcrypt from 'bcrypt'
 import crypto from 'crypto'
 import { emitAdminUpdate } from '../utils/socket.js';
+import { logActivity } from '../models/activityLog.js';
 
 const createAndSendVerificationEmail = async (user) => {
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -91,7 +92,7 @@ export const addAdmin = async (req, res) => {
 
 export const registerWithGoogle = async (req, res) => {
     try {
-        const { credential, role = 'user', proxy } = req.body;
+        const { credential, proxy } = req.body;
         if (!credential) {
             return res.status(400).json({ status: 'fail', message: 'Google credential is required' });
         }
@@ -120,7 +121,7 @@ export const registerWithGoogle = async (req, res) => {
             user = await User.create({
                 userName,
                 email,
-                role: role === 'client' ? 'client' : 'user',
+                role: 'user',
                 proxy,
                 password: crypto.randomBytes(32).toString('hex'),
                 isVerified: true,
@@ -255,6 +256,18 @@ export const loginUser = async (req, res) => {
 
         // return an error response if user doies not exist 
         if (!user) {
+            await logActivity({
+                userName: email || '',
+                userRole: 'unknown',
+                action: 'login_failed',
+                resourceType: 'auth',
+                ipAddress: req.ip || req.socket?.remoteAddress,
+                userAgent: req.get('user-agent'),
+                path: req.path,
+                method: req.method,
+                statusCode: 404,
+                metadata: { reason: 'user_not_found', identifier: email },
+            });
             return res.status(404).json({ status: "fail", message: "invalid Email or Password" })
         }
 
@@ -263,6 +276,19 @@ export const loginUser = async (req, res) => {
 
         // return an error if the passwords does  not match 
         if (!comparePassword) {
+            await logActivity({
+                userId: user._id,
+                userName: user.userName || user.email || '',
+                userRole: user.role,
+                action: 'login_failed',
+                resourceType: 'auth',
+                ipAddress: req.ip || req.socket?.remoteAddress,
+                userAgent: req.get('user-agent'),
+                path: req.path,
+                method: req.method,
+                statusCode: 403,
+                metadata: { reason: 'invalid_password' },
+            });
             return res.status(403).json({
                 status: "failed",
                 message: "invalid email or password"
@@ -270,6 +296,19 @@ export const loginUser = async (req, res) => {
         }
 
         if (!user.isVerified) {
+            await logActivity({
+                userId: user._id,
+                userName: user.userName || user.email || '',
+                userRole: user.role,
+                action: 'login_failed',
+                resourceType: 'auth',
+                ipAddress: req.ip || req.socket?.remoteAddress,
+                userAgent: req.get('user-agent'),
+                path: req.path,
+                method: req.method,
+                statusCode: 403,
+                metadata: { reason: 'email_not_verified' },
+            });
             return res.status(403).json({
                 status: "failed",
                 message: "Please verify your email before logging in."
@@ -277,6 +316,19 @@ export const loginUser = async (req, res) => {
         }
 
         if (user.role !== 'admin' && !user.isApproved) {
+            await logActivity({
+                userId: user._id,
+                userName: user.userName || user.email || '',
+                userRole: user.role,
+                action: 'login_failed',
+                resourceType: 'auth',
+                ipAddress: req.ip || req.socket?.remoteAddress,
+                userAgent: req.get('user-agent'),
+                path: req.path,
+                method: req.method,
+                statusCode: 403,
+                metadata: { reason: 'account_pending_approval' },
+            });
             return res.status(403).json({
                 status: "failed",
                 message: "Your account is pending administrator approval. You can sign in after it has been approved."
@@ -291,6 +343,25 @@ export const loginUser = async (req, res) => {
 
         const accessToken = generateAccessToken({id: user._id})
         const refreshToken = generateRefreshToken({id: user._id})
+
+        await User.findByIdAndUpdate(user._id, {
+            lastLoginAt: new Date(),
+            lastLoginIp: req.ip || req.socket?.remoteAddress,
+            $inc: { loginCount: 1 },
+        });
+
+        await logActivity({
+            userId: user._id,
+            userName: user.userName || user.email || '',
+            userRole: user.role,
+            action: 'login',
+            resourceType: 'auth',
+            ipAddress: req.ip || req.socket?.remoteAddress,
+            userAgent: req.get('user-agent'),
+            path: req.path,
+            method: req.method,
+            statusCode: 200,
+        });
 
         // store token using the HttpOnly XSS(cross site scripting )
         res.cookie('refreshToken', refreshToken, {
@@ -371,6 +442,25 @@ export const approveUser = async (req, res) => {
 
         const safeUser = user.toObject();
         delete safeUser.password;
+
+        await logActivity({
+            userId: user._id,
+            userName: user.userName || user.email || '',
+            userRole: user.role,
+            action: 'account_approved',
+            resourceType: 'user',
+            resourceId: user._id.toString(),
+            ipAddress: req.ip || req.socket?.remoteAddress,
+            userAgent: req.get('user-agent'),
+            path: req.path,
+            method: req.method,
+            statusCode: 200,
+            metadata: {
+                adminUserId: req.user?._id,
+                adminUserName: req.user?.userName || req.user?.email || '',
+            },
+        });
+
         emitAdminUpdate({ title: "Account approved", message: `${user.userName}'s account was approved.`, type: "success" });
         return res.status(200).json({ status: "success", message: "User approved successfully", data: safeUser });
     } catch (err) {
@@ -453,6 +543,20 @@ export const refreshTokenRoute = async (req, res) => {
         }
 
         const accessToken = generateAccessToken({ id: user._id });
+
+        await logActivity({
+            userId: user._id,
+            userName: user.userName || user.email || '',
+            userRole: user.role,
+            action: 'token_refreshed',
+            resourceType: 'auth',
+            ipAddress: req.ip || req.socket?.remoteAddress,
+            userAgent: req.get('user-agent'),
+            path: req.path,
+            method: req.method,
+            statusCode: 200,
+        });
+
         return res.json({ accessToken });
     } catch {
         return res.sendStatus(403);
@@ -584,6 +688,20 @@ export const sortUsers = async (req, res) => {
 
 export const logoutUser = async (req, res) => {
     try {
+        if (req.user) {
+            await logActivity({
+                userId: req.user._id,
+                userName: req.user.userName || req.user.email || '',
+                userRole: req.user.role,
+                action: 'logout',
+                resourceType: 'auth',
+                ipAddress: req.ip || req.socket?.remoteAddress,
+                userAgent: req.get('user-agent'),
+                path: req.path,
+                method: req.method,
+                statusCode: 200,
+            });
+        }
         res.clearCookie('refreshToken', {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",

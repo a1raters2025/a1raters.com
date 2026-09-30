@@ -18,6 +18,7 @@ import {
   User,
   FileDown,
   Bell,
+  Activity,
   X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -71,6 +72,7 @@ export const Sidebar: React.FC = () => {
           { label: 'User Management', to: '/admin/users', icon: Users, section: 'Admin', adminOnly: true },
           { label: 'Task Management', to: '/admin/tasks', icon: FolderOpen, section: 'Admin', adminOnly: true },
           { label: 'Audit Log', to: '/admin/audit-log', icon: Shield, section: 'Admin', adminOnly: true },
+          { label: 'Activity Monitor', to: '/admin/activity-monitor', icon: Activity, section: 'Admin', adminOnly: true },
           { label: 'Video Training', to: '/admin/training', icon: Video, section: 'Admin', adminOnly: true },
           { label: 'Import Data', to: '/import-data', icon: FileDown, section: 'Admin', adminOnly: true },
           { label: 'System Settings', to: '/admin/settings', icon: Shield, section: 'Admin', adminOnly: true },

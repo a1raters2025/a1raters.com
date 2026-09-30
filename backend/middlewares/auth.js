@@ -15,7 +15,11 @@ const auth = async (req, res, next) => {
 
     try {
         const verified = jwt.verify(token, process.env.JWT_SECRET)
-        const user = await User.findById(verified.id)
+        const user = await User.findByIdAndUpdate(
+            verified.id,
+            { lastSeenAt: new Date() },
+            { new: true, select: '-password' }
+        )
 
         if (!user) {
             return res.status(404).json({

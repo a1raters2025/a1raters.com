@@ -25,6 +25,7 @@ import { UserManagement } from './components/Admin/UserManagement';
 import { TaskManagement } from './components/Admin/TaskManagement';
 import { VideoTraining } from './components/Admin/VideoTraining';
 import { AdminSettings } from './components/Admin/AdminSettings';
+import { AdminActivityMonitor } from './components/Admin/AdminActivityMonitor';
 import { AuthProvider } from './components/Auth/AuthProvider';
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => <AppShell>{children}</AppShell>;
@@ -179,6 +180,17 @@ function App() {
               <PrivateRoute>
                 <AdminRoute>
                   <Shell><AdminAuditLog /></Shell>
+                </AdminRoute>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/admin/activity-monitor"
+            element={
+              <PrivateRoute>
+                <AdminRoute>
+                  <Shell><AdminActivityMonitor /></Shell>
                 </AdminRoute>
               </PrivateRoute>
             }

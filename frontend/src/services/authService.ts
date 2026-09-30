@@ -13,6 +13,10 @@ export interface User {
     isVerified?: boolean;
     isApproved?: boolean;
     image?: string;
+    lastLoginAt?: string;
+    lastLoginIp?: string;
+    lastSeenAt?: string;
+    loginCount?: number;
 }
 
 export interface LoginResponse {

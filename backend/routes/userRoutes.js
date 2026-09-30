@@ -58,8 +58,8 @@ Router.route('/verify-email/:token')
     .get(verifyEmail)
 
 Router.route('/:email')
-    .patch(auth, updateUser)
-    .delete(auth, deleteUser)
+    .patch(auth, admin, updateUser)
+    .delete(auth, admin, deleteUser)
 
 Router.route('/refresh-token')
 .post(refreshTokenRoute)
