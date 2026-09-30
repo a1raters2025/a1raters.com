@@ -1,5 +1,8 @@
 import Report from "../models/Report.js";
+import Task from "../models/Task.js";
 import AppError from "../errors/AppError.js";
+
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 export const getClientDashboard = async (req, res, next) => {
     try {
@@ -409,3 +412,86 @@ export const searchRaters = async (req, res, next) => {
         next(err);
     }
 };
+
+export const getTaskActivity = asyncHandler(async (req, res) => {
+    const { page = 1, limit = 100, email } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const user = req.user;
+
+    const filter = {};
+    if (email) filter.raterEmail = email.toLowerCase();
+
+    let clientEmailFilter = null;
+    if (user && user.role === 'client') {
+        clientEmailFilter = user.email?.toLowerCase();
+    }
+
+    const tasks = await Task.find({
+        ...filter,
+        status: { $in: ['processing', 'done', 'expired'] },
+        isActive: true,
+    })
+        .sort({ updatedAt: -1 })
+        .skip(skip)
+        .limit(Number(limit))
+        .populate('currentRater', 'userName email')
+        .populate('assignedRaters', 'userName email');
+
+    const total = await Task.countDocuments({
+        ...filter,
+        status: { $in: ['processing', 'done', 'expired'] },
+        isActive: true,
+    });
+
+    const activities = tasks.map((task) => {
+        const status = task.status;
+        let startedAt = null;
+        let completedAt = null;
+        let duration = task.duration || 0;
+
+        const rater = task.currentRater || (task.assignedRaters && task.assignedRaters[0]);
+
+        if (status === 'done' || status === 'expired') {
+            completedAt = task.updatedAt;
+            duration = task.duration || 0;
+        } else if (status === 'processing') {
+            startedAt = task.expiresAt ? new Date(task.expiresAt.getTime() - 30 * 60 * 1000).toISOString() : task.updatedAt;
+        }
+
+        if (status === 'done' || status === 'expired') {
+            startedAt = task.createdAt;
+        }
+
+        return {
+            id: task._id.toString(),
+            taskId: task._id.toString(),
+            raterName: rater?.userName || 'Unassigned',
+            raterEmail: rater?.email || '',
+            category: task.category,
+            subCategory: task.subCategory,
+            taskQuery: task.query,
+            status,
+            duration: duration ? Math.round(duration) : 0,
+            startedAt,
+            completedAt,
+        };
+    });
+
+    if (clientEmailFilter) {
+        const filtered = activities.filter((a) => a.raterEmail && a.raterEmail.toLowerCase() === clientEmailFilter);
+        activities.length = 0;
+        activities.push(...filtered);
+    }
+
+    res.status(200).json({
+        status: "success",
+        message: "Task activity retrieved successfully",
+        data: activities,
+        pagination: {
+            currentPage: Number(page),
+            totalPages: Math.ceil(total / Number(limit)),
+            totalItems: total,
+            itemsPerPage: Number(limit),
+        },
+    });
+});

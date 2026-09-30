@@ -12,6 +12,9 @@ import {
   getProxies,
   getRatingOptions,
   bulkCreateTasks,
+  assignRater,
+  completeTask,
+  getActiveTasks,
 } from "../controllers/taskController.js";
 
 const Router = express.Router();
@@ -30,6 +33,11 @@ Router.route("/bulk").post(auth, admin, bulkCreateTasks);
 
 Router.route("/category/:category").get(auth, getTasksByCategory);
 Router.route("/category/:category/:subCategory").get(auth, getTasksByCategory);
+
+Router.route("/active").get(auth, getActiveTasks);
+
+Router.route("/:id/assign").post(auth, assignRater);
+Router.route("/:id/complete").post(auth, completeTask);
 
 Router.route("/:id")
   .get(auth, getTaskById)

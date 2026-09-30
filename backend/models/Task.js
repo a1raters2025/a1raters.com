@@ -68,6 +68,31 @@ const taskSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    status: {
+      type: String,
+      enum: ["active", "processing", "done", "expired"],
+      default: "active",
+      required: true,
+    },
+    assignedRaters: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    currentRater: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    duration: {
+      type: Number,
+      default: 0,
+    },
+    expiresAt: {
+      type: Date,
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -80,6 +105,8 @@ const taskSchema = new mongoose.Schema(
 
 taskSchema.index({ category: 1, subCategory: 1 });
 taskSchema.index({ query: "text", "result.title": "text" });
+taskSchema.index({ status: 1, category: 1 });
+taskSchema.index({ currentRater: 1, status: 1 });
 
 const Task = mongoose.model("Task", taskSchema);
 

@@ -12,6 +12,10 @@ export interface User {
     role?: 'admin' | 'user' | 'client';
     isVerified?: boolean;
     isApproved?: boolean;
+    isRejected?: boolean;
+    rejectionReason?: string | null;
+    rejectedAt?: string | null;
+    categories?: string[];
     image?: string;
     lastLoginAt?: string;
     lastLoginIp?: string;
@@ -253,6 +257,32 @@ export const authService = {
         );
         if (response.status !== 'success' || !response.data) {
             throw new Error(response.message || 'Unable to approve user');
+        }
+        return response.data;
+    },
+
+    async getPendingUsers(page = 1, limit = 50, role?: string): Promise<{ users: User[]; total: number; totalPages: number; currentPage: number }> {
+        let endpoint = `/user/users/pending?page=${page}&limit=${limit}`;
+        if (role) endpoint += `&role=${encodeURIComponent(role)}`;
+        const response = await apiClient.get<{ status: string; data: User[]; pagination: { currentPage: number; totalPages: number; totalItems: number; itemsPerPage: number } }>(endpoint);
+        if (response.status !== 'success' || !response.data) {
+            throw new Error('Unable to fetch pending users');
+        }
+        return {
+            users: response.data,
+            total: response.pagination?.totalItems ?? response.data.length,
+            totalPages: response.pagination?.totalPages ?? 1,
+            currentPage: response.pagination?.currentPage ?? page,
+        };
+    },
+
+    async rejectUser(userId: string, reason: string): Promise<User> {
+        const response = await apiClient.post<{ status: string; message?: string; data: User }>(
+            `/user/users/${encodeURIComponent(userId)}/reject`,
+            { reason },
+        );
+        if (response.status !== 'success' || !response.data) {
+            throw new Error(response.message || 'Unable to reject user');
         }
         return response.data;
     },

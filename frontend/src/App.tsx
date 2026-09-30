@@ -26,6 +26,7 @@ import { TaskManagement } from './components/Admin/TaskManagement';
 import { VideoTraining } from './components/Admin/VideoTraining';
 import { AdminSettings } from './components/Admin/AdminSettings';
 import { AdminActivityMonitor } from './components/Admin/AdminActivityMonitor';
+import { UserApprovalPage } from './components/Admin/UserApprovalPage';
 import { AuthProvider } from './components/Auth/AuthProvider';
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => <AppShell>{children}</AppShell>;
@@ -191,6 +192,17 @@ function App() {
               <PrivateRoute>
                 <AdminRoute>
                   <Shell><AdminActivityMonitor /></Shell>
+                </AdminRoute>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/admin/user-approvals"
+            element={
+              <PrivateRoute>
+                <AdminRoute>
+                  <Shell><UserApprovalPage /></Shell>
                 </AdminRoute>
               </PrivateRoute>
             }

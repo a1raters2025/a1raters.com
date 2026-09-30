@@ -2,9 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { authService } from '../../services/authService';
-import { clientService, type ClientDashboardResponse } from '../../services/clientService';
+import { clientService, type ClientDashboardResponse, type TaskActivityResult } from '../../services/clientService';
 import { GlassCard } from '../UI/GlassCard';
-import { BarChart3, Clock, FileText, LogOut, Mail, Search, Users, Activity, Wallet, BarChart2 } from 'lucide-react';
+import { BarChart3, Clock, FileText, LogOut, Mail, Search, Users, Activity, Wallet, BarChart2, Timer, CheckCircle, AlertCircle, PauseCircle } from 'lucide-react';
 
 const emptyData: ClientDashboardResponse['data'] = {
   reports: [],
@@ -21,7 +21,9 @@ export const ClientDashboard: React.FC = () => {
   const [data, setData] = useState<ClientDashboardResponse['data']>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'raters'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'raters' | 'activity'>('overview');
+
+  const [taskActivities, setTaskActivities] = useState<TaskActivityResult[]>([]);
 
   const loadReports = useCallback(async (emailFilter?: string) => {
     setLoading(true);
@@ -53,6 +55,15 @@ export const ClientDashboard: React.FC = () => {
     return () => {
       active = false;
     };
+  }, []);
+
+  const loadTaskActivities = useCallback(async () => {
+    try {
+      const response = await clientService.getTaskActivity({ limit: 200 });
+      setTaskActivities(response.data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unable to load task activity.');
+    }
   }, []);
 
   const handleLogout = async () => {
@@ -167,6 +178,15 @@ export const ClientDashboard: React.FC = () => {
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'raters' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
           >
             <Users className="w-4 h-4" /> Rater Breakdown
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('activity');
+              void loadTaskActivities();
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'activity' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+          >
+            <Timer className="w-4 h-4" /> Task Activity
           </button>
         </div>
 
@@ -403,9 +423,74 @@ export const ClientDashboard: React.FC = () => {
               ) : (
                 <p className="p-8 text-center text-slate-400">No rater performance data available.</p>
               )}
+             </GlassCard>
+           </motion.div>
+         )}
+
+        {/* TASK ACTIVITY TAB */}
+        {activeTab === 'activity' && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            <GlassCard className="overflow-hidden" delay={0.4} hover={false}>
+              <div className="px-6 py-4 border-b border-white/5">
+                <h2 className="font-bold text-white">Task Activity</h2>
+                <p className="mt-1 text-sm text-slate-400">
+                  Real-time view of rater activities, task durations, and status changes.
+                </p>
+              </div>
+
+              {taskActivities.length === 0 ? (
+                <p className="p-8 text-center text-slate-400">
+                  No task activity recorded yet.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[900px] text-left text-sm">
+                    <thead className="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
+                      <tr>
+                        <th className="px-5 py-3">Rater</th>
+                        <th className="px-5 py-3">Task</th>
+                        <th className="px-5 py-3">Category</th>
+                        <th className="px-5 py-3">Status</th>
+                        <th className="px-5 py-3">Duration</th>
+                        <th className="px-5 py-3">Started</th>
+                        <th className="px-5 py-3">Completed</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {taskActivities.map((item) => {
+                        const statusIcon =
+                          item.status === 'done' ? CheckCircle :
+                          item.status === 'processing' ? <PauseCircle size={16} className="text-amber-400" /> :
+                          item.status === 'expired' ? <AlertCircle size={16} className="text-rose-400" /> :
+                          <Timer size={16} className="text-slate-400" />;
+                        return (
+                          <tr key={item.id} className="hover:bg-white/5 transition-colors">
+                            <td className="px-5 py-4 font-semibold text-white">{item.raterName || '—'}</td>
+                            <td className="px-5 py-4 text-slate-300">{item.taskQuery || item.taskId}</td>
+                            <td className="px-5 py-4 text-slate-400">{item.category || '—'}</td>
+                            <td className="px-5 py-4">
+                              <span className="flex items-center gap-1">
+                                {statusIcon}
+                                {item.status}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-slate-300">{item.duration ? `${Math.round(item.duration)} min` : '—'}</td>
+                            <td className="px-5 py-4 text-slate-400">{item.startedAt ? formatDate(item.startedAt) : '—'}</td>
+                            <td className="px-5 py-4 text-slate-400">{item.completedAt ? formatDate(item.completedAt) : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </GlassCard>
           </motion.div>
-        )}
+         )}
 
         <p className="mt-4 text-xs text-slate-500">
           Signed in as {user?.email || user?.username} ({user?.role})

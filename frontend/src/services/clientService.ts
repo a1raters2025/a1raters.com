@@ -45,6 +45,32 @@ export interface SearchRatersResponse {
     data: Record<string, unknown>[];
 }
 
+export interface TaskActivityResult {
+    id: string;
+    taskId: string;
+    raterName: string;
+    raterEmail?: string;
+    category: string;
+    subCategory: string;
+    taskQuery: string;
+    status: 'active' | 'processing' | 'done' | 'expired';
+    duration: number;
+    startedAt: string | null;
+    completedAt: string | null;
+}
+
+export interface TaskActivityResponse {
+    status: string;
+    message: string;
+    data: TaskActivityResult[];
+    pagination?: {
+        currentPage: number;
+        totalPages: number;
+        totalItems: number;
+        itemsPerPage: number;
+    };
+}
+
 export const clientService = {
     async getDashboard(params?: {
         page?: number;
@@ -95,6 +121,22 @@ export const clientService = {
 
     async searchRaters(query: string): Promise<SearchRatersResponse> {
         const response = await apiClient.get<SearchRatersResponse>(`/client/search?q=${encodeURIComponent(query)}`);
+        return response;
+    },
+
+    async getTaskActivity(params?: {
+        page?: number;
+        limit?: number;
+        email?: string;
+    }): Promise<TaskActivityResponse> {
+        let endpoint = '/client/task-activity';
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.append('page', params.page.toString());
+        if (params?.limit) queryParams.append('limit', params.limit.toString());
+        if (params?.email) queryParams.append('email', params.email);
+        if (queryParams.toString()) endpoint += `?${queryParams.toString()}`;
+
+        const response = await apiClient.get<TaskActivityResponse>(endpoint);
         return response;
     },
 };

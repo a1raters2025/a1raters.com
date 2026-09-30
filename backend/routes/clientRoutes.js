@@ -6,6 +6,7 @@ import {
   getReportsByEmail,
   getClientSummary,
   searchRaters,
+  getTaskActivity,
 } from "../controllers/clientController.js";
 
 const Router = express.Router();
@@ -17,5 +18,6 @@ Router.route("/dashboard").get(getClientDashboard);
 Router.route("/summary").get(getClientSummary);
 Router.route("/search").get(searchRaters);
 Router.route("/email/:email").get(getReportsByEmail);
+Router.route("/task-activity").get(getTaskActivity);
 
 export default Router;

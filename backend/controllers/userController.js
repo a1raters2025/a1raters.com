@@ -366,7 +366,7 @@ export const loginUser = async (req, res) => {
         // store token using the HttpOnly XSS(cross site scripting )
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "Production",
+            secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
             maxAge: 7 * 24 * 60 * 60 * 1000  //changing 7days to milliseconds
 
@@ -465,6 +465,93 @@ export const approveUser = async (req, res) => {
         return res.status(200).json({ status: "success", message: "User approved successfully", data: safeUser });
     } catch (err) {
         return res.status(500).json({ status: "failed", message: `Unable to approve user: ${err.message}` });
+    }
+}
+
+export const getPendingUsers = async (req, res) => {
+    try {
+        const { page = 1, limit = 50, role } = req.query;
+        const filter = { isApproved: false, isVerified: true };
+        if (role) filter.role = role;
+
+        const skip = (Number(page) - 1) * Number(limit);
+
+        const users = await User.find(filter)
+            .select("-password -verificationToken -verificationTokenExpires")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(Number(limit));
+
+        const total = await User.countDocuments(filter);
+
+        return res.status(200).json({
+            status: "success",
+            message: "Pending users retrieved successfully",
+            data: users,
+            pagination: {
+                currentPage: Number(page),
+                totalPages: Math.ceil(total / Number(limit)),
+                totalItems: total,
+                itemsPerPage: Number(limit),
+            },
+        });
+    } catch (err) {
+        return res.status(500).json({ status: "failed", message: `Unable to get pending users: ${err.message}` });
+    }
+}
+
+export const rejectUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason } = req.body;
+
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ status: "failed", message: "User not found" });
+        }
+        if (user.role === 'admin') {
+            return res.status(400).json({ status: "failed", message: "Administrator accounts cannot be rejected" });
+        }
+
+        const wasApproved = user.isApproved;
+        user.isApproved = false;
+        user.isRejected = true;
+        user.rejectionReason = reason || 'No reason provided';
+        user.rejectedAt = new Date();
+        user.rejectedBy = req.user?._id || null;
+        await user.save();
+
+        const safeUser = user.toObject();
+        delete safeUser.password;
+
+        await logActivity({
+            userId: user._id,
+            userName: user.userName || user.email || '',
+            userRole: user.role,
+            action: 'account_rejected',
+            resourceType: 'user',
+            resourceId: user._id.toString(),
+            ipAddress: req.ip || req.socket?.remoteAddress,
+            userAgent: req.get('user-agent'),
+            path: req.path,
+            method: req.method,
+            statusCode: 200,
+            metadata: {
+                adminUserId: req.user?._id,
+                adminUserName: req.user?.userName || req.user?.email || '',
+                reason: reason || 'No reason provided',
+            },
+        });
+
+        emitAdminUpdate({
+            title: "Account rejected",
+            message: `${user.userName}'s account was rejected.`,
+            type: "warning",
+        });
+
+        return res.status(200).json({ status: "success", message: "User rejected successfully", data: safeUser });
+    } catch (err) {
+        return res.status(500).json({ status: "failed", message: `Unable to reject user: ${err.message}` });
     }
 }
 

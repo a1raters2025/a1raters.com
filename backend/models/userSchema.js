@@ -27,11 +27,21 @@ let userSchema = new mongoose.Schema({
         type: String,
         trim: true,
     },
-      role:{
+    role:{
         type: String,
         enum: ["admin", "user", "client"],
         default: "user"
-       
+    },
+
+    categories: {
+        type: [String],
+        enum: ["App Store", "Mac App Store", "Video", "Video Hint", "Podcast", "Music", "AI Assist", "App Image Accessibility", "Manual Invoice", "App Store Image"],
+        default: [],
+    },
+
+    evaluation: {
+        type: String,
+        default: null,
     },
 
     password: {
@@ -63,6 +73,23 @@ let userSchema = new mongoose.Schema({
     isApproved: {
         type: Boolean,
         default: true
+    },
+    isRejected: {
+        type: Boolean,
+        default: false
+    },
+    rejectionReason: {
+        type: String,
+        default: null
+    },
+    rejectedAt: {
+        type: Date,
+        default: null
+    },
+    rejectedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null
     },
      isVerified: {
         type: Boolean,

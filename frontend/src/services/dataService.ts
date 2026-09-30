@@ -1,5 +1,7 @@
 import { apiClient, isUnauthorizedError } from './apiClient';
 
+export type TaskStatus = 'active' | 'processing' | 'done' | 'expired';
+
 export interface TaskData {
     _id?: string;
     id: string;
@@ -32,11 +34,28 @@ export interface TaskData {
         userName: string;
         email: string;
     };
+    status?: TaskStatus;
+    assignedRaters?: Array<{ _id: string; userName: string; email: string }>;
+    currentRater?: { _id: string; userName: string; email: string } | null;
+    duration?: number;
+    expiresAt?: string | null;
     createdAt?: string;
     updatedAt?: string;
 }
 
 export interface TaskListResponse {
+    status: string;
+    message: string;
+    data: TaskData[];
+    pagination?: {
+        currentPage: number;
+        totalPages: number;
+        totalItems: number;
+        itemsPerPage: number;
+    };
+}
+
+export interface ActiveTasksResponse {
     status: string;
     message: string;
     data: TaskData[];
@@ -232,8 +251,7 @@ const normalizeTask = (task: TaskData): TaskData => ({
 });
 
 export const dataService = {
-    async getTasks(category?: string, subCategory?: string, mode?: string, page = 1, limit = 50): Promise<TaskData[]> {
-        try {
+    async getTasks(category?: string, subCategory?: string, mode?: string, page = 1, limit = 50): Promise<TaskData[]> {        try {
             let endpoint = `/tasks?page=${page}&limit=${limit}`;
             if (category) endpoint += `&category=${encodeURIComponent(category)}`;
             if (subCategory) endpoint += `&subCategory=${encodeURIComponent(subCategory)}`;
@@ -459,5 +477,47 @@ export const dataService = {
             const filtered = customTasks.filter(t => t.id !== id);
             localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(filtered));
         }
-    }
+    },
+
+    async getActiveTasks(category?: string, subCategory?: string, mode?: string, page = 1, limit = 20): Promise<TaskData[]> {
+        let endpoint = `/tasks/active?page=${page}&limit=${limit}`;
+        if (category) endpoint += `&category=${encodeURIComponent(category)}`;
+        if (subCategory) endpoint += `&subCategory=${encodeURIComponent(subCategory)}`;
+        if (mode) endpoint += `&mode=${encodeURIComponent(mode)}`;
+
+        try {
+            const response = await apiClient.get<{ status: string; data: TaskData[]; pagination?: unknown }>(endpoint);
+            if (response.status === 'success' && response.data) {
+                return response.data.map(normalizeTask);
+            }
+        } catch (error) {
+            if (isUnauthorizedError(error)) return [];
+            console.error('Failed to fetch active tasks from backend:', error);
+        }
+        return [];
+    },
+
+    async assignTask(taskId: string): Promise<TaskData | undefined> {
+        try {
+            const response = await apiClient.post<{ status: string; data: TaskData }>(`/tasks/${encodeURIComponent(taskId)}/assign`, {});
+            if (response.status === 'success' && response.data) {
+                return normalizeTask(response.data);
+            }
+        } catch (error) {
+            console.error('Failed to assign task:', error);
+        }
+        return undefined;
+    },
+
+    async completeTask(taskId: string, status: 'done' | 'expired' = 'done'): Promise<TaskData | undefined> {
+        try {
+            const response = await apiClient.post<{ status: string; data: TaskData }>(`/tasks/${encodeURIComponent(taskId)}/complete`, { status });
+            if (response.status === 'success' && response.data) {
+                return normalizeTask(response.data);
+            }
+        } catch (error) {
+            console.error('Failed to complete task:', error);
+        }
+        return undefined;
+    },
 };

@@ -10,6 +10,8 @@ import {
     profile, 
     getAllUsers, 
     approveUser,
+    rejectUser,
+    getPendingUsers,
     updateUser, 
     deleteUser, 
     verifyEmail, 
@@ -29,6 +31,12 @@ Router.route('/users')
 
 Router.route('/users/:id/approval')
     .patch(auth, admin, approveUser)
+
+Router.route('/users/pending')
+    .get(auth, admin, getPendingUsers)
+
+Router.route('/users/:id/reject')
+    .post(auth, admin, rejectUser)
 
 Router.route('/register')
     .post(upload.single("image"), addUser)
