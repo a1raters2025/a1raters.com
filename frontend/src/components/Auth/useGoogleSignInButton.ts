@@ -14,7 +14,7 @@ interface GoogleIdentityApi {
       }) => void;
       renderButton: (
         parent: HTMLElement,
-        options: { theme: 'outline'; size: 'large'; text: 'continue_with'; width: number }
+        options: { theme: 'outline'; size: 'large'; text: 'continue_with' | 'none' | 'signin_with' | 'sign_in_with' | 'signup_with' | 'sign_up_with'; width: number; height?: number }
       ) => void;
     };
   };
