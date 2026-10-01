@@ -14,7 +14,6 @@ import testHistoryRouter from "./routes/testHistoryRoutes.js"
 import clientRouter from "./routes/clientRoutes.js"
 import adminRouter from "./routes/adminRoutes.js"
 import activityLogger from "./middlewares/activityLogger.js"
-import morgan from "morgan"
 import connect from "./utils/db.js"
 import cors from "cors"
 import cookieParser from "cookie-parser"
@@ -98,7 +97,9 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(morgan('dev'))
+let morgan;
+try { morgan = (await import("morgan")).default; } catch { /* morgan is optional — skip in production */ }
+if (morgan) app.use(morgan('dev'));
 app.use(cookieParser())
 app.use(limiter)
 
