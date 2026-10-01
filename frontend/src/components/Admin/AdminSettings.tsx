@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { APP_CONFIG } from '../../config/appConfig';
-import { ArrowLeft, Save, Loader2, Shield, Globe, Palette, Database, Key, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Shield, Globe, Palette, Database, Key } from 'lucide-react';
 import { GlassCard } from '../UI/GlassCard';
 
 interface SystemStats {
@@ -43,10 +43,6 @@ export const AdminSettings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [stats, setStats] = useState<SystemStats | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showSmtpPassword, setShowSmtpPassword] = useState(false);
-  const [showOpenAIKey, setShowOpenAIKey] = useState(false);
-  const [showCloudinarySecret, setShowCloudinarySecret] = useState(false);
 
   const [settings, setSettings] = useState<AdminSettings>({
     siteName: 'A1 Raters',
@@ -68,6 +64,10 @@ export const AdminSettings: React.FC = () => {
     cloudinaryApiKey: '',
     cloudinaryApiSecret: '',
   });
+
+  const handleChange = (key: keyof AdminSettings, value: string | number | boolean) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -95,16 +95,12 @@ export const AdminSettings: React.FC = () => {
   };
 
   useEffect(() => {
-    // Fetch-in-effect: initialize settings/stats from the backend on mount.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchSettings();
-     
-    fetchStats();
+    const init = async () => {
+      await fetchSettings();
+      await fetchStats();
+    };
+    void init();
   }, []);
-
-  const handleChange = (key: keyof AdminSettings, value: string | number | boolean) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -270,25 +266,22 @@ export const AdminSettings: React.FC = () => {
           <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Google OAuth Client ID</label>
           <div className="relative">
             <input
-              type={showPassword ? 'text' : 'password'}
+              type="text"
               value={settings.googleClientId}
               onChange={(e) => handleChange('googleClientId', e.target.value)}
-              className="w-full px-4 py-2.5 pr-12 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
-              placeholder="Enter Google Client ID"
+              disabled
+              className="w-full px-4 py-2.5 pr-12 rounded-xl border border-white/10 bg-white/5 text-slate-400 placeholder-slate-500 transition-all text-sm outline-none"
+              placeholder="Configured via environment variable"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
+            <Shield size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
           </div>
+          <p className="text-[10px] text-slate-500 mt-1">Set via GOOGLE_CLIENT_ID environment variable on the backend</p>
         </div>
       </div>
 
       <div className="pt-4 border-t border-white/10">
         <h3 className="text-lg font-semibold text-white mb-4">Email (SMTP)</h3>
+        <p className="text-xs text-slate-500 mb-4">SMTP credentials are configured via environment variables on the backend and cannot be edited from the dashboard.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">SMTP Host</label>
@@ -296,8 +289,10 @@ export const AdminSettings: React.FC = () => {
               type="text"
               value={settings.smtpHost}
               onChange={(e) => handleChange('smtpHost', e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
+              disabled
+              className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all text-sm outline-none"
             />
+            <p className="text-[10px] text-slate-500 mt-1">via SMTP_HOST</p>
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">SMTP Port</label>
@@ -305,8 +300,10 @@ export const AdminSettings: React.FC = () => {
               type="number"
               value={settings.smtpPort}
               onChange={(e) => handleChange('smtpPort', parseInt(e.target.value))}
-              className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
+              disabled
+              className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all text-sm outline-none"
             />
+            <p className="text-[10px] text-slate-500 mt-1">via SMTP_PORT</p>
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">SMTP Username</label>
@@ -314,26 +311,23 @@ export const AdminSettings: React.FC = () => {
               type="text"
               value={settings.smtpUser}
               onChange={(e) => handleChange('smtpUser', e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
+              disabled
+              className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all text-sm outline-none"
             />
+            <p className="text-[10px] text-slate-500 mt-1">via SMTP_USER</p>
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">SMTP Password</label>
             <div className="relative">
               <input
-                type={showSmtpPassword ? 'text' : 'password'}
-                value={settings.smtpPassword}
-                onChange={(e) => handleChange('smtpPassword', e.target.value)}
-                className="w-full px-4 py-2.5 pr-12 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
+                type="password"
+                value={settings.smtpPassword ? '••••••••••••' : ''}
+                disabled
+                className="w-full px-4 py-2.5 pr-12 rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all text-sm outline-none"
               />
-              <button
-                type="button"
-                onClick={() => setShowSmtpPassword(!showSmtpPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-              >
-                {showSmtpPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+              <Shield size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
             </div>
+            <p className="text-[10px] text-slate-500 mt-1">via SMTP_PASSWORD — not editable from dashboard</p>
           </div>
         </div>
       </div>
@@ -343,29 +337,26 @@ export const AdminSettings: React.FC = () => {
   const renderIntegrations = () => (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-white">AI Services</h3>
+      <p className="text-xs text-slate-500 mb-4">API keys are configured via environment variables on the backend and cannot be edited from the dashboard.</p>
       <div>
         <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">OpenAI API Key</label>
         <div className="relative">
           <input
-            type={showOpenAIKey ? 'text' : 'password'}
-            value={settings.openaiApiKey}
+            type="password"
+            value={settings.openaiApiKey ? '••••••••••••' : ''}
             onChange={(e) => handleChange('openaiApiKey', e.target.value)}
-            className="w-full px-4 py-2.5 pr-12 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
+            disabled
+            className="w-full px-4 py-2.5 pr-12 rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all text-sm outline-none"
             placeholder="sk-proj-..."
           />
-          <button
-            type="button"
-            onClick={() => setShowOpenAIKey(!showOpenAIKey)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-          >
-            {showOpenAIKey ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
+          <Shield size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
         </div>
-        <p className="text-[10px] text-slate-500 mt-1">Used for AI-powered image analysis in task creation</p>
+        <p className="text-[10px] text-slate-500 mt-1">Configure via OPENAI_API_KEY on the backend</p>
       </div>
 
       <div className="pt-4 border-t border-white/10">
         <h3 className="text-lg font-semibold text-white mb-4">Cloudinary (Media Storage)</h3>
+        <p className="text-xs text-slate-500 mb-4">Cloudinary credentials are configured via environment variables on the backend and cannot be edited from the dashboard.</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Cloud Name</label>
@@ -373,8 +364,10 @@ export const AdminSettings: React.FC = () => {
               type="text"
               value={settings.cloudinaryCloudName}
               onChange={(e) => handleChange('cloudinaryCloudName', e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
+              disabled
+              className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all text-sm outline-none"
             />
+            <p className="text-[10px] text-slate-500 mt-1">via CLOUDINARY_CLOUD_NAME</p>
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">API Key</label>
@@ -382,26 +375,24 @@ export const AdminSettings: React.FC = () => {
               type="text"
               value={settings.cloudinaryApiKey}
               onChange={(e) => handleChange('cloudinaryApiKey', e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
+              disabled
+              className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all text-sm outline-none"
             />
+            <p className="text-[10px] text-slate-500 mt-1">via CLOUDINARY_API_KEY</p>
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">API Secret</label>
             <div className="relative">
               <input
-                type={showCloudinarySecret ? 'text' : 'password'}
-                value={settings.cloudinaryApiSecret}
+                type="password"
+                value={settings.cloudinaryApiSecret ? '••••••••••••' : ''}
                 onChange={(e) => handleChange('cloudinaryApiSecret', e.target.value)}
-                className="w-full px-4 py-2.5 pr-12 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
+                disabled
+                className="w-full px-4 py-2.5 pr-12 rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all text-sm outline-none"
               />
-              <button
-                type="button"
-                onClick={() => setShowCloudinarySecret(!showCloudinarySecret)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-              >
-                {showCloudinarySecret ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+              <Shield size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
             </div>
+            <p className="text-[10px] text-slate-500 mt-1">via CLOUDINARY_API_SECRET — not editable from dashboard</p>
           </div>
         </div>
       </div>

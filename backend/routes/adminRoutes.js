@@ -227,12 +227,6 @@ Router.post(
             "smtpHost",
             "smtpPort",
             "smtpUser",
-            "smtpPassword",
-            "googleClientId",
-            "openaiApiKey",
-            "cloudinaryCloudName",
-            "cloudinaryApiKey",
-            "cloudinaryApiSecret",
         ];
 
         const changedFields = Object.keys(updates).filter((f) => allowedFields.includes(f));
