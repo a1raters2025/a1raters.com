@@ -300,8 +300,8 @@ export const Login: React.FC = () => {
               <span className="absolute inset-x-0 top-1/2 border-t border-white/10" />
             </div>
 
-            <div className={`flex min-h-11 w-full justify-center ${isLoading ? 'pointer-events-none opacity-50' : ''}`}>
-              <div ref={googleButtonRef} className="w-full" aria-label={googleReady ? 'Continue with Google' : 'Loading Google sign-in'} />
+            <div className={`flex justify-center py-4 ${isLoading ? 'pointer-events-none opacity-50' : ''}`}>
+              <div ref={googleButtonRef} className="w-[50px] h-[50px] flex items-center justify-center" aria-label={googleReady ? 'Sign in with Google' : 'Loading Google sign-in'} />
             </div>
 
             {mode === 'rater' && (

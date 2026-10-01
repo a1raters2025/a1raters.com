@@ -92,11 +92,17 @@ export const useGoogleSignInButton = (onCredential: (credential: string) => Prom
       });
 
       button.replaceChildren();
+      button.style.width = '50px';
+      button.style.height = '50px';
+      button.style.display = 'flex';
+      button.style.justifyContent = 'center';
+      button.style.alignItems = 'center';
       google.accounts.id.renderButton(button, {
         theme: 'outline',
         size: 'large',
-        text: 'continue_with',
-        width: Math.floor(button.getBoundingClientRect().width),
+        text: 'none',
+        width: 50,
+        height: 50,
       });
       setIsReady(true);
     }).catch((error: unknown) => {

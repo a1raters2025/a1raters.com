@@ -218,8 +218,8 @@ export const Register: React.FC = () => {
 
                         <div className="relative py-1 text-center text-xs uppercase tracking-widest text-slate-500"><span className="relative z-10 bg-slate-900 px-3">or</span><span className="absolute inset-x-0 top-1/2 border-t border-white/10" /></div>
 
-                        <div className={`flex min-h-11 w-full justify-center ${isLoading ? 'pointer-events-none opacity-50' : ''}`}>
-                            <div ref={googleButtonRef} className="w-full" aria-label={googleReady ? 'Continue with Google' : 'Loading Google sign-up'} />
+                        <div className={`flex justify-center py-4 ${isLoading ? 'pointer-events-none opacity-50' : ''}`}>
+                            <div ref={googleButtonRef} className="w-[50px] h-[50px] flex items-center justify-center" aria-label={googleReady ? 'Sign up with Google' : 'Loading Google sign-up'} />
                         </div>
 
                         <button
