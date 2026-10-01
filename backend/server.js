@@ -31,7 +31,8 @@ const httpServer = createServer(app);
 const isAllowedOrigin = (origin) => {
   if (!origin) return true;
   if (process.env.NODE_ENV !== "production" && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return true;
-  return [process.env.CLIENT_URL, "https://a1raters.com", "https://www.a1raters.com", "https://a1raters-com-2.onrender.com"].filter(Boolean).includes(origin);
+  const allowedOrigins = [process.env.CLIENT_URL, "https://a1raters.com", "https://www.a1raters.com", "https://a1raters-com-2.onrender.com", "https://a1raters-com-rho.vercel.app"].filter(Boolean);
+  return allowedOrigins.includes(origin) || /^https:\/\/[a-zA-Z0-9-]+\.vercel\.app$/.test(origin);
 };
 const io = new SocketServer(httpServer, {
   cors: { origin: (origin, callback) => callback(null, isAllowedOrigin(origin)), credentials: true },
