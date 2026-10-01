@@ -106,7 +106,10 @@ export const registerWithGoogle = async (req, res) => {
         }
 
         const googleUser = await googleResponse.json();
-        if (googleUser.aud !== process.env.GOOGLE_CLIENT_ID) {
+        const expectedClientId = process.env.GOOGLE_CLIENT_ID;
+        const audience = googleUser.aud;
+        const audList = Array.isArray(audience) ? audience : String(audience || '').split(',').map(a => a.trim());
+        if (!audList.includes(expectedClientId)) {
             return res.status(401).json({ status: 'fail', message: 'Google credential audience mismatch' });
         }
 
