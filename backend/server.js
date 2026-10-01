@@ -130,9 +130,11 @@ app.get("/api/v1/health", (req, res) => {
 app.use(errorMiddleware);
 
 
-connect();
-// creating a server using express
-let PORT = process.env.PORT
-httpServer.listen(PORT, ()=>{
-    console.log(`Server connected on port: ${PORT}`)
-})
+const startServer = async () => {
+    await connect();
+    const PORT = process.env.PORT;
+    httpServer.listen(PORT, ()=>{
+        console.log(`Server connected on port: ${PORT}`);
+    });
+};
+startServer();
