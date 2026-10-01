@@ -142,8 +142,8 @@ export const registerWithGoogle = async (req, res) => {
         const refreshToken = generateRefreshToken({ id: user._id });
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'Production',
-            sameSite: 'strict',
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'none',
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
@@ -367,7 +367,7 @@ export const loginUser = async (req, res) => {
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            sameSite: "none",
             maxAge: 7 * 24 * 60 * 60 * 1000  //changing 7days to milliseconds
 
         });
@@ -792,7 +792,7 @@ export const logoutUser = async (req, res) => {
         res.clearCookie('refreshToken', {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            sameSite: "none",
         });
 
         res.status(200).json({
