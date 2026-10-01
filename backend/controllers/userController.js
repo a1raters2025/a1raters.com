@@ -411,6 +411,110 @@ export const profile = (req, res) => {
     }
 }
 
+// Update profile for authenticated user
+export const profileUpdate = async (req, res) => {
+    try {
+        const editableFields = ['userName', 'email', 'proxy', 'evaluation'];
+        const updateData = Object.fromEntries(
+            Object.entries(req.body).filter(([field]) => editableFields.includes(field))
+        );
+
+        if (Object.keys(updateData).length === 0) {
+            const safeUser = await User.findById(req.user._id).select("-password");
+            return res.status(200).json({ status: "success", data: safeUser });
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            updateData,
+            { returnDocument: "after", select: "-password" }
+        );
+
+        res.status(200).json({
+            status: "success",
+            message: "Profile updated successfully",
+            data: user
+        });
+    } catch (err) {
+        console.error("Profile update error:", err);
+        res.status(500).json({
+            status: "failed",
+            message: `Internal server error: ${err.message}`
+        });
+    }
+}
+
+// Remove profile image
+export const removeProfileImage = async (req, res) => {
+    try {
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user._id,
+            { image: null },
+            { returnDocument: "after", select: "-password" }
+        );
+
+        res.status(200).json({
+            status: "success",
+            message: "Profile image removed successfully",
+            data: updatedUser
+        });
+    } catch (err) {
+        console.error("Profile image removal error:", err);
+        res.status(500).json({
+            status: "failed",
+            message: "Failed to remove profile image"
+        });
+    }
+}
+
+// Upload profile image via Cloudinary
+export const uploadProfileImage = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ status: "fail", message: "No image file provided" });
+        }
+
+        const imageUrl = req.file.secure_url || req.file.path;
+
+        const updatedUser = await User.findByIdAndUpdate(
+            req.user._id,
+            { image: imageUrl },
+            { returnDocument: "after", select: "-password" }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ status: "fail", message: "User not found" });
+        }
+
+        await logActivity({
+            userId: req.user._id,
+            userName: req.user.userName || req.user.email,
+            userRole: req.user.role,
+            action: "upload_file",
+            resourceType: "user",
+            resourceId: String(req.user._id),
+            ipAddress: req.ip || req.socket?.remoteAddress,
+            userAgent: req.get("user-agent"),
+            path: req.path,
+            method: req.method,
+            statusCode: 200,
+            metadata: { imageType: "profile", imageType: "profile" },
+        });
+
+        return res.status(200).json({
+            status: "success",
+            message: "Profile image uploaded successfully",
+            data: updatedUser,
+        });
+    } catch (err) {
+        console.error("Profile image upload error:", err);
+        return res.status(500).json({
+            status: "fail",
+            message: "Failed to upload profile image",
+        });
+    }
+}
+
 // get all users
 export const getAllUsers = async (req, res) => {
     try {

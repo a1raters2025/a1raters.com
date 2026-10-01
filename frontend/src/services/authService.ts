@@ -250,8 +250,8 @@ export const authService = {
     },
 
     async updateProfile(updates: Pick<User, 'username' | 'email' | 'evaluation' | 'proxy'>): Promise<User> {
-        if (!currentUser?.email) throw new Error('You must be signed in to update your profile');
-        const response = await apiClient.patch<{ status: string; message?: string; data: User }>(`/user/${encodeURIComponent(currentUser.email)}`, {
+        if (!currentUser) throw new Error('You must be signed in to update your profile');
+        const response = await apiClient.patch<{ status: string; message?: string; data: User }>(`/user/profile`, {
             userName: updates.username,
             email: updates.email,
             evaluation: updates.evaluation,
@@ -301,11 +301,20 @@ export const authService = {
     },
 
     async uploadProfileImage(file: File): Promise<User> {
-        if (!currentUser?.email) throw new Error('You must be signed in to upload a profile image');
+        if (!currentUser) throw new Error('You must be signed in to upload a profile image');
         const formData = new FormData();
         formData.append('image', file);
-        const response = await apiClient.upload<{ status: string; message?: string; data: User }>(`/user/${encodeURIComponent(currentUser.email)}/image`, formData);
+        const response = await apiClient.upload<{ status: string; message?: string; data: User }>(`/user/${encodeURIComponent(currentUser.email || '')}/image`, formData);
         if (response.status !== 'success' || !response.data) throw new Error(response.message || 'Image upload failed');
+        currentUser = { ...response.data, username: response.data.userName || response.data.username, isAdmin: response.data.role === 'admin' };
+        setStoredUser(currentUser);
+        return currentUser;
+    },
+
+    async removeProfileImage(): Promise<User> {
+        if (!currentUser) throw new Error('You must be signed in to remove a profile image');
+        const response = await apiClient.delete<{ status: string; message?: string; data: User }>('/user/me/image');
+        if (response.status !== 'success' || !response.data) throw new Error(response.message || 'Image removal failed');
         currentUser = { ...response.data, username: response.data.userName || response.data.username, isAdmin: response.data.role === 'admin' };
         setStoredUser(currentUser);
         return currentUser;

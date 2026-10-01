@@ -7,7 +7,8 @@ import {
     getCountries,
     loginUser, 
     logoutUser,
-    profile, 
+    profile,
+    profileUpdate,
     getAllUsers, 
     approveUser,
     rejectUser,
@@ -21,7 +22,9 @@ import {
     sortUsers, 
     getPage,
     addAdmin,
-    resendVerificationEmail } from "../controllers/userController.js"
+    resendVerificationEmail,
+    uploadProfileImage,
+    removeProfileImage } from "../controllers/userController.js"
 import admin from "../middlewares/adminMiddleware.js"
 import { User } from "../models/userSchema.js"
 
@@ -59,6 +62,13 @@ Router.route('/resend-verification')
 
 Router.route('/profile')
     .get(auth, profile)
+    .patch(auth, profileUpdate)
+
+Router.route('/:email/image')
+    .post(auth, upload.single("image"), uploadProfileImage)
+
+Router.route('/me/image')
+    .delete(auth, removeProfileImage)
 
 Router.route('/logout')
     .post(auth, logoutUser)

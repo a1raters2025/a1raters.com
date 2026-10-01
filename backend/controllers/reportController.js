@@ -2,7 +2,7 @@ import Report from "../models/Report.js";
 import AuditLog from "../models/AuditLog.js";
 import AppError from "../errors/AppError.js";
 
-const LATE_SUBMISSION_DEADLINE_HOUR = 9;
+const LATE_SUBMISSION_DEADLINE_HOUR = 10;
 const LATE_SUBMISSION_DEADLINE_MINUTE = 0;
 
 const createAuditEntry = async ({
@@ -66,7 +66,7 @@ export const createReport = async (req, res, next) => {
         userId: req.user._id,
         userName: req.user.userName,
         ipAddress: req.ip,
-        reason: "Late submission after 9:00 AM deadline",
+        reason: "Late submission after 10:00 AM deadline",
       });
     }
 
@@ -106,7 +106,7 @@ export const bulkCreateReports = async (req, res, next) => {
           userId: req.user._id,
           userName: req.user.userName,
           ipAddress: req.ip,
-          reason: "Late submission after 9:00 AM deadline",
+          reason: "Late submission after 10:00 AM deadline",
         });
       }
     });

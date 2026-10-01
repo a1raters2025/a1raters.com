@@ -59,32 +59,46 @@ export const ProfilePage: React.FC = () => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setMessage('Please select an image file.');
+    if (!file.type.startsWith("image/")) {
+      setMessage("Please select an image file.");
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setMessage('Image must be less than 5MB.');
+      setMessage("Image must be less than 5MB.");
       return;
     }
 
+    // Show local preview immediately
     const reader = new FileReader();
     reader.onload = (event) => {
       setImagePreview(event.target?.result as string);
     };
     reader.readAsDataURL(file);
+
+    // Upload to Cloudinary via backend
+    setUploadingImage(true);
+    setMessage("");
+    try {
+      const updatedUser = await authService.uploadProfileImage(file);
+      setUser(updatedUser);
+      setMessage("Profile image uploaded successfully!");
+    } catch {
+      setMessage("Failed to upload image. Please try again.");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleRemoveImage = async () => {
     setUploadingImage(true);
     setMessage('');
     try {
-      const updatedUser = await authService.uploadProfileImage(new File([''], 'empty.png', { type: 'image/png' }));
+      const updatedUser = await authService.removeProfileImage();
       setUser(updatedUser);
       setImagePreview(null);
       setMessage('Profile image removed successfully!');
