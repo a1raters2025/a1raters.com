@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import { User } from './authService';
+import type { User } from './authService';
 
 export interface ActivityEntry {
   _id: string;
