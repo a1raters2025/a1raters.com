@@ -22,6 +22,18 @@ export interface User {
     lastSeenAt?: string;
     loginCount?: number;
     createdAt?: string;
+    paymentDetails?: {
+        bankName?: string | null;
+        accountNumber?: string | null;
+        accountName?: string | null;
+        currency?: string;
+        isVerified?: boolean;
+        verifiedAt?: string | null;
+    };
+    totalEarned?: number;
+    totalPaid?: number;
+    paymentStatus?: 'pending' | 'processing' | 'paid' | 'failed';
+    lastPaymentDate?: string | null;
 }
 
 export interface LoginResponse {

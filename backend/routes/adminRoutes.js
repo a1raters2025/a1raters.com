@@ -234,4 +234,115 @@ Router.post(
     })
 );
 
+/* Payment Details Routes */
+Router.get(
+    "/payments/raters",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const { page = 1, limit = 50, paymentStatus } = req.query;
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const filter = { role: "user" };
+        if (paymentStatus) filter.paymentStatus = paymentStatus;
+
+        const [raters, total] = await Promise.all([
+            User.find(filter)
+                .select("userName email proxy paymentDetails totalEarned totalPaid paymentStatus lastPaymentDate createdAt")
+                .sort("-createdAt")
+                .skip(skip)
+                .limit(parseInt(limit)),
+            User.countDocuments(filter),
+        ]);
+
+        res.status(200).json({
+            status: "success",
+            data: raters,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(total / parseInt(limit)),
+                totalItems: total,
+            },
+        });
+    })
+);
+
+Router.get(
+    "/payments/raters/:userId",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const { userId } = req.params;
+        const rater = await User.findById(userId).select(
+            "userName email proxy paymentDetails totalEarned totalPaid paymentStatus lastPaymentDate createdAt"
+        );
+
+        if (!rater) {
+            return res.status(404).json({ status: "fail", message: "Rater not found" });
+        }
+
+        res.status(200).json({ status: "success", data: rater });
+    })
+);
+
+Router.patch(
+    "/payments/raters/:userId/process",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const { userId } = req.params;
+        const { paymentStatus, amount, notes } = req.body;
+
+        const rater = await User.findById(userId);
+        if (!rater) {
+            return res.status(404).json({ status: "fail", message: "Rater not found" });
+        }
+
+        if (rater.role !== "user") {
+            return res.status(400).json({ status: "fail", message: "User is not a rater" });
+        }
+
+        const updates = {};
+        if (paymentStatus) {
+            rater.paymentStatus = paymentStatus;
+            updates.paymentStatus = paymentStatus;
+        }
+
+        if (amount && paymentStatus === "paid") {
+            rater.totalPaid += Number(amount);
+            rater.totalEarned -= Number(amount);
+            rater.lastPaymentDate = new Date();
+            updates.totalPaid = rater.totalPaid;
+            updates.lastPaymentDate = rater.lastPaymentDate;
+        }
+
+        await rater.save();
+
+        await logActivity({
+            userId: req.user._id,
+            userName: req.user.userName || req.user.email,
+            userRole: req.user.role,
+            action: "payment_processed",
+            resourceType: "user",
+            resourceId: userId,
+            path: req.path,
+            method: req.method,
+            statusCode: 200,
+            metadata: { ...updates, notes: notes || null, amount: amount || null },
+        });
+
+        res.status(200).json({
+            status: "success",
+            message: "Payment processed successfully",
+            data: {
+                userId,
+                userName: rater.userName,
+                paymentStatus: rater.paymentStatus,
+                totalEarned: rater.totalEarned,
+                totalPaid: rater.totalPaid,
+                lastPaymentDate: rater.lastPaymentDate,
+            },
+        });
+    })
+);
+
 export default Router;

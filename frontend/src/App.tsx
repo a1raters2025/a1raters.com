@@ -27,6 +27,8 @@ import { VideoTraining } from './components/Admin/VideoTraining';
 import { AdminSettings } from './components/Admin/AdminSettings';
 import { AdminActivityMonitor } from './components/Admin/AdminActivityMonitor';
 import { UserApprovalPage } from './components/Admin/UserApprovalPage';
+import { AdminPayments } from './components/Admin/AdminPayments';
+import { PaymentDetailsForm } from './components/Admin/PaymentDetailsForm';
 import { AuthProvider } from './components/Auth/AuthProvider';
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => <AppShell>{children}</AppShell>;
@@ -204,6 +206,26 @@ function App() {
                 <AdminRoute>
                   <Shell><UserApprovalPage /></Shell>
                 </AdminRoute>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/admin/payments"
+            element={
+              <PrivateRoute>
+                <AdminRoute>
+                  <Shell><AdminPayments /></Shell>
+                </AdminRoute>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/payment-details"
+            element={
+              <PrivateRoute>
+                <Shell><PaymentDetailsForm /></Shell>
               </PrivateRoute>
             }
           />

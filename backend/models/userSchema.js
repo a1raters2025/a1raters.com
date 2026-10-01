@@ -119,6 +119,33 @@ let userSchema = new mongoose.Schema({
         default: 0,
     },
 
+    paymentDetails: {
+        bankName: { type: String, default: null },
+        accountNumber: { type: String, default: null },
+        accountName: { type: String, default: null },
+        currency: { type: String, default: 'USD' },
+        isVerified: { type: Boolean, default: false },
+        verifiedAt: { type: Date, default: null },
+    },
+
+    totalEarned: {
+        type: Number,
+        default: 0,
+    },
+    totalPaid: {
+        type: Number,
+        default: 0,
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'processing', 'paid', 'failed'],
+        default: 'pending',
+    },
+    lastPaymentDate: {
+        type: Date,
+        default: null,
+    },
+
 }, 
 {
     timestamps: true

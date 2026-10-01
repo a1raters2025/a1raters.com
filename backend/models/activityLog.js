@@ -42,6 +42,7 @@ const activityLogSchema = new mongoose.Schema(
                 "token_refreshed",
                 "admin_registered",
                 "api_request",
+                "payment_processed",
             ],
             required: true,
         },

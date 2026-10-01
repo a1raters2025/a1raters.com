@@ -21,6 +21,7 @@ import {
   Activity,
   X,
   UserPlus,
+  DollarSign,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMobileMenu } from '../../contexts/MobileMenuContext';
@@ -64,6 +65,7 @@ export const Sidebar: React.FC = () => {
     { label: 'Training Library', to: '/training', icon: BookOpen, section: 'Learning' },
     { label: 'Reports', to: '/report', icon: FileText, section: 'Reporting' },
     { label: 'My Reports', to: '/my-reports', icon: History, section: 'Reporting' },
+    { label: 'Payment Details', to: '/payment-details', icon: DollarSign, section: 'Reporting' },
     { label: 'History & Invoices', to: '/history', icon: History, section: 'Reporting' },
     { label: 'My Profile', to: '/profile', icon: User, section: 'Account' },
     { label: 'Contact', to: '/contact', icon: Send, section: 'Account' },
@@ -76,8 +78,9 @@ export const Sidebar: React.FC = () => {
           { label: 'Activity Monitor', to: '/admin/activity-monitor', icon: Activity, section: 'Admin', adminOnly: true },
           { label: 'User Approvals', to: '/admin/user-approvals', icon: UserPlus, section: 'Admin', adminOnly: true },
           { label: 'Video Training', to: '/admin/training', icon: Video, section: 'Admin', adminOnly: true },
-          { label: 'Import Data', to: '/import-data', icon: FileDown, section: 'Admin', adminOnly: true },
-          { label: 'System Settings', to: '/admin/settings', icon: Shield, section: 'Admin', adminOnly: true },
+           { label: 'Import Data', to: '/import-data', icon: FileDown, section: 'Admin', adminOnly: true },
+           { label: 'System Settings', to: '/admin/settings', icon: Shield, section: 'Admin', adminOnly: true },
+           { label: 'Payments', to: '/admin/payments', icon: DollarSign, section: 'Admin', adminOnly: true },
         ]
       : []),
     { label: 'Settings', to: '/settings', icon: Settings, section: 'Account' },
