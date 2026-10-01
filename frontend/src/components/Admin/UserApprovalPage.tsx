@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { authService, type User } from '../../services/authService';
 import { GlassCard } from '../UI/GlassCard';
@@ -28,13 +28,6 @@ const getRoleBadge = (role: string) => {
     default:
       return 'bg-slate-500/20 text-slate-300 border-slate-500/30';
   }
-};
-
-const getInitials = (name: string) => name.slice(0, 2).toUpperCase();
-
-const formatDate = (date: string | null | undefined) => {
-  if (!date) return '—';
-  return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
 const getInitials = (name: string) => name.slice(0, 2).toUpperCase();
@@ -267,12 +260,11 @@ export const UserApprovalPage: React.FC = () => {
                         placeholder="Reason for rejection..."
                         value={rejectReasons[user._id || ''] ?? ''}
                         onChange={(e) => setRejectReasons((prev) => ({ ...prev, [user._id || '']: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-400 focus:border-rose-400 outline-none text-sm resize-none"
-                          rows={2}
-                        />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-400 focus:border-rose-400 outline-none text-sm resize-none"
+                        rows={2}
+                      ></textarea>
+                    </motion.div>
+                  )}
                 </GlassCard>
               </motion.div>
             ))}

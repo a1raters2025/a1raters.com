@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+import { APP_CONFIG } from '../config/appConfig';
+
+const API_BASE_URL = APP_CONFIG.apiUrl;
 
 type TokenRefreshHandler = (accessToken: string) => void;
 type UnauthorizedHandler = () => void;

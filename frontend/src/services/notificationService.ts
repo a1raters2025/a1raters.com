@@ -1,4 +1,5 @@
 import { io, type Socket } from 'socket.io-client';
+import { APP_CONFIG } from '../config/appConfig';
 
 export interface AppNotification {
   id: string;
@@ -10,7 +11,7 @@ export interface AppNotification {
 }
 
 const STORAGE_KEY = 'a1_raters_notifications';
-const SOCKET_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace(/\/api\/v1\/?$/, '');
+const SOCKET_URL = APP_CONFIG.apiUrl.replace(/\/api\/v1\/?$/, '');
 let socket: Socket | null = null;
 let listeners: Array<(items: AppNotification[]) => void> = [];
 

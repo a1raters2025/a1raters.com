@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Upload, Save, CheckCircle, AlertCircle, Key, Loader2 } from 'lucide-react';
 import { dataService, type TaskData } from '../../services/dataService';
 import { apiClient } from '../../services/apiClient';
+import { APP_CONFIG } from '../../config/appConfig';
 import { PasswordField } from '../UI/PasswordField';
 import { GlassCard } from '../UI/GlassCard';
 
@@ -62,7 +63,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     setErrorMessage('');
 
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch(`${APP_CONFIG.openaiApiUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

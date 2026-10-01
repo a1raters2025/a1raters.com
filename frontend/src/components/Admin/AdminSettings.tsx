@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
+import { APP_CONFIG } from '../../config/appConfig';
 import { ArrowLeft, Save, Loader2, Shield, Globe, Palette, Database, Key, Eye, EyeOff } from 'lucide-react';
 import { GlassCard } from '../UI/GlassCard';
 
@@ -60,7 +61,7 @@ export const AdminSettings: React.FC = () => {
     smtpPort: 587,
     smtpUser: '',
     smtpPassword: '',
-    fromEmail: 'noreply@a1raters.com',
+    fromEmail: APP_CONFIG.fromEmail,
     googleClientId: '',
     openaiApiKey: '',
     cloudinaryCloudName: '',

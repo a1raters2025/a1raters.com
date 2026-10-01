@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .kilo
+.env
+.env.example

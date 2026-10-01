@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { apiClient } from '../../services/apiClient';
+import { APP_CONFIG } from '../../config/appConfig';
 import { ArrowLeft, ArrowRight, Briefcase, ChevronDown, LoaderCircle, Mail, Shield, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PasswordField } from '../UI/PasswordField';
@@ -76,7 +77,7 @@ export const Register: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        const clientId = APP_CONFIG.googleClientId;
         if (!clientId) return;
 
         const existingScript = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');

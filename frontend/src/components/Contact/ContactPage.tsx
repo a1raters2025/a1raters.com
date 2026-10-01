@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Mail, Phone, Send, MapPin, Clock, HelpCircle, FileText, Users } from 'lucide-react';
+import { APP_CONFIG } from '../../config/appConfig';
 
 export const ContactPage: React.FC = () => {
   const [sent, setSent] = useState(false);
@@ -12,8 +13,8 @@ export const ContactPage: React.FC = () => {
   };
 
   const contactMethods = [
-    { icon: Mail, label: 'Email support', value: 'support@a1raters.com', desc: 'Send us an email anytime', color: '#06b6d4' },
-    { icon: Phone, label: 'Phone', value: '+1 (555) 123-4567', desc: 'Mon-Fri, 9AM-6PM UTC', color: '#34d399' },
+    { icon: Mail, label: 'Email support', value: APP_CONFIG.supportEmail, desc: 'Send us an email anytime', color: '#06b6d4' },
+    { icon: Phone, label: 'Phone', value: APP_CONFIG.phoneNumber, desc: 'Mon-Fri, 9AM-6PM UTC', color: '#34d399' },
     { icon: MapPin, label: 'Office', value: 'Remote-first', desc: 'Global team', color: '#f59e0b' },
     { icon: Clock, label: 'Response window', value: 'Within 1 business day', desc: 'We aim to reply fast', color: '#8b5cf6' },
   ];

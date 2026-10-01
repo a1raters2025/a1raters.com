@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import { APP_CONFIG } from '../../config/appConfig';
 import {
   Heart,
   Shield,
@@ -35,7 +36,7 @@ const footerLinks = [
   {
     title: 'Support',
     links: [
-      { label: 'Email: support@a1raters.com', href: 'mailto:support@a1raters.com' },
+      { label: `Email: ${APP_CONFIG.supportEmail}`, href: `mailto:${APP_CONFIG.supportEmail}` },
       { label: 'Documentation', href: '#' },
       { label: 'Status', href: '#' },
     ],
@@ -137,7 +138,7 @@ export const Footer: React.FC = () => {
           <ul>
             <li className="flex items-center gap-2.5">
               <Mail size={14} className="text-slate-500" />
-              support@a1raters.com
+              {APP_CONFIG.supportEmail}
             </li>
             <li className="flex items-center gap-2.5">
               <Phone size={14} className="text-slate-500" />
