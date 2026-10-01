@@ -570,7 +570,7 @@ export const updateUser = async (req, res) => {
         const user = await User.findOneAndUpdate(
             { email: email.toLowerCase() },
             updateData,
-            { new: true }
+            { returnDocument: 'after' }
         ).select("-password")
 
         if (!user) {

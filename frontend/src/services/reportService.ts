@@ -258,7 +258,7 @@ export const reportService = {
     try {
       const reportsWithSubmission = reports.map(r => ({
         ...r,
-        submissionTime: r.submissionTime || new Date().toISOString(),
+        submissionTime: (r as Partial<RequestReport>).submissionTime || new Date().toISOString(),
       }));
 
       const response = await apiClient.post<{ status: string; message?: string; data: RequestReport[] }>('/reports/bulk', { reports: reportsWithSubmission });
@@ -295,7 +295,7 @@ export const reportService = {
       const id = updatedReport._id || updatedReport.id;
       if (!id) throw new Error('Report ID is required');
 
-      const body = { ...updatedReport };
+      const body: Partial<RequestReport> & { reason?: string } = { ...updatedReport };
       if (reason) body.reason = reason;
 
       const response = await apiClient.patch<{ status: string; data: RequestReport }>(`/reports/${id}`, body);

@@ -18,7 +18,7 @@ const auth = async (req, res, next) => {
         const user = await User.findByIdAndUpdate(
             verified.id,
             { lastSeenAt: new Date() },
-            { new: true, select: '-password' }
+            { returnDocument: 'after', select: '-password' }
         )
 
         if (!user) {

@@ -1370,7 +1370,7 @@ export const ReportHistory: React.FC = () => {
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hours</th>
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Late Penalty</th>
-                                            {(isAdmin || user?.username === report?.raterName) && <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>}
+                                            {isAdmin && <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">

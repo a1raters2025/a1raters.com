@@ -115,7 +115,7 @@ export const getInvoicesByRater = async (req, res, next) => {
 export const updateInvoice = async (req, res, next) => {
   try {
     const invoice = await Invoice.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     }).populate("submittedBy", "userName email");
 
@@ -162,7 +162,7 @@ export const updateInvoiceStatus = async (req, res, next) => {
         reviewedAt: new Date(),
         ...(status === "Paid" && { paymentDate: new Date() }),
       },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     ).populate("reviewedBy", "userName email");
 
     if (!invoice) {

@@ -294,7 +294,7 @@ export const getTasksByCategory = async (req, res, next) => {
 export const updateTask = async (req, res, next) => {
   try {
     const task = await Task.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     }).populate("createdBy", "userName email");
 
@@ -317,7 +317,7 @@ export const deleteTask = async (req, res, next) => {
     const task = await Task.findByIdAndUpdate(
       req.params.id,
       { isActive: false },
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     if (!task) {

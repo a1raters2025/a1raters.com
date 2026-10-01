@@ -21,6 +21,7 @@ export interface User {
     lastLoginIp?: string;
     lastSeenAt?: string;
     loginCount?: number;
+    createdAt?: string;
 }
 
 export interface LoginResponse {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { authService } from '../../services/authService';
 import { clientService, type ClientDashboardResponse, type TaskActivityResult } from '../../services/clientService';
+import type { RequestReport } from '../../services/reportService';
 import { GlassCard } from '../UI/GlassCard';
 import { BarChart3, Clock, FileText, LogOut, Mail, Search, Users, Activity, Wallet, BarChart2, Timer, CheckCircle, AlertCircle, PauseCircle } from 'lucide-react';
 
@@ -463,7 +464,7 @@ export const ClientDashboard: React.FC = () => {
                     <tbody className="divide-y divide-white/5">
                       {taskActivities.map((item) => {
                         const statusIcon =
-                          item.status === 'done' ? CheckCircle :
+                          item.status === 'done' ? <CheckCircle size={16} className="text-emerald-400" /> :
                           item.status === 'processing' ? <PauseCircle size={16} className="text-amber-400" /> :
                           item.status === 'expired' ? <AlertCircle size={16} className="text-rose-400" /> :
                           <Timer size={16} className="text-slate-400" />;

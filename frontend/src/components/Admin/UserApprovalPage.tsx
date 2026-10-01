@@ -13,6 +13,7 @@ import {
   Loader2,
   Calendar,
   Mail,
+  User as UserIcon,
 } from 'lucide-react';
 
 const ROLE_OPTIONS = ['user', 'client'] as const;
@@ -36,24 +37,16 @@ const formatDate = (date: string | null | undefined) => {
   return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-interface PendingUser {
-  user: User & {
-    _id: string;
-    userName: string;
-    email: string;
-    role: string;
-    createdAt: string;
-    categories?: string[];
-    isRejected?: boolean;
-    rejectionReason?: string | null;
-    rejectedAt?: string | null;
-  };
-  rejectReason: string;
-}
+const getInitials = (name: string) => name.slice(0, 2).toUpperCase();
+
+const formatDate = (date: string | null | undefined) => {
+  if (!date) return '—';
+  return new Date(date).toLocaleDateString('en-us', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
 
 export const UserApprovalPage: React.FC = () => {
   const navigate = useNavigate();
-  const [pendingUsers, setPendingUsers] = useState<PendingUser['user'][]>([]);
+  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -82,10 +75,11 @@ export const UserApprovalPage: React.FC = () => {
     void init();
   }, [fetchPendingUsers]);
 
-  const handleApprove = async (user: PendingUser['user']) => {
-    const confirmed = window.confirm(`Approve ${user.userName}'s account? They will be granted access to the platform.`);
+  const handleApprove = async (user: User) => {
+    const confirmed = window.confirm(`Approve ${user.userName || user.username}'s account? They will be granted access to the platform.`);
     if (!confirmed) return;
     try {
+      if (!user._id) throw new Error('User ID is required');
       await authService.approveUser(user._id);
       setPendingUsers((prev) => prev.filter((u) => u._id !== user._id));
     } catch (err) {
@@ -93,15 +87,16 @@ export const UserApprovalPage: React.FC = () => {
     }
   };
 
-  const handleReject = async (user: PendingUser['user']) => {
-    const reason = rejectReasons[user._id] ?? '';
+  const handleReject = async (user: User) => {
+    const reason = rejectReasons[user._id || ''] ?? '';
     if (!reason.trim()) {
       window.alert('Please provide a reason for rejection.');
       return;
     }
-    const confirmed = window.confirm(`Reject ${user.userName}'s account? Reason: ${reason.substring(0, 50)}${reason.length > 50 ? '...' : ''}`);
+    const confirmed = window.confirm(`Reject ${user.userName || user.username}'s account? Reason: ${reason.substring(0, 50)}${reason.length > 50 ? '...' : ''}`);
     if (!confirmed) return;
     try {
+      if (!user._id) throw new Error('User ID is required');
       await authService.rejectUser(user._id, reason);
       setPendingUsers((prev) => prev.filter((u) => u._id !== user._id));
     } catch (err) {
@@ -204,18 +199,18 @@ export const UserApprovalPage: React.FC = () => {
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0">
                       {user.image ? (
-                        <img src={user.image} alt={user.userName} className="w-10 h-10 rounded-lg object-cover" />
+                        <img src={user.image} alt={user.userName || user.username} className="w-10 h-10 rounded-lg object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center font-bold text-white">
-                          {getInitials(user.userName || '')}
+                          {getInitials(user.userName || user.username || '')}
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="font-medium text-white">{user.userName}</span>
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getRoleBadge(user.role)}`}>
-                          {user.role}
+                        <span className="font-medium text-white">{user.userName || user.username}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${getRoleBadge(user.role || 'user')}`}>
+                          {user.role || 'user'}
                         </span>
                         <span className="text-xs text-slate-500 flex items-center gap-1">
                           <Calendar size={12} />
@@ -261,18 +256,17 @@ export const UserApprovalPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <AnimatePresence>
-                    {rejectReasons[user._id] !== undefined && (
-                      <motion.div
-                        className="mt-3 pt-3 border-t border-white/5"
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                      >
-                        <textarea
-                          placeholder="Reason for rejection..."
-                          value={rejectReasons[user._id] ?? ''}
-                          onChange={(e) => setRejectReasons((prev) => ({ ...prev, [user._id]: e.target.value }))}
+                  {rejectReasons[user._id || ''] !== undefined && (
+                    <motion.div
+                      className="mt-3 pt-3 border-t border-white/5"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                    >
+                      <textarea
+                        placeholder="Reason for rejection..."
+                        value={rejectReasons[user._id || ''] ?? ''}
+                        onChange={(e) => setRejectReasons((prev) => ({ ...prev, [user._id || '']: e.target.value }))}
                           className="w-full px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-400 focus:border-rose-400 outline-none text-sm resize-none"
                           rows={2}
                         />

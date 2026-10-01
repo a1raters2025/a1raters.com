@@ -7,7 +7,9 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "lint": "node --check server.js && node --check backend/models/*.js && node --check backend/controllers/*.js && node --check backend/routes/*.js && node --check backend/middlewares/*.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

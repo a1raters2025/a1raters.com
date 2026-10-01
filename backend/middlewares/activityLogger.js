@@ -5,6 +5,38 @@ const SKIP_LOGGING_PATHS = new Set([
     "/api/v1/user/refresh-token",
 ]);
 
+const RESOURCE_TYPE_MAP = {
+    user: "user",
+    users: "user",
+    report: "report",
+    reports: "report",
+    invoice: "invoice",
+    invoices: "invoice",
+    task: "task",
+    tasks: "task",
+    test: "test",
+    "test-history": "test",
+    file: "file",
+    files: "file",
+    session: "session",
+    sessions: "session",
+    setting: "settings",
+    settings: "settings",
+    admin: "system",
+    client: "system",
+    video: "system",
+    videos: "system",
+    training: "system",
+    import: "system",
+};
+
+const getResourceType = (path) => {
+    const segment = path.toLowerCase().split("/")[4];
+    if (!segment) return "system";
+    const mapped = RESOURCE_TYPE_MAP[segment];
+    return mapped ?? "system";
+};
+
 const activityLogger = (req, res, next) => {
     const start = Date.now();
 
@@ -44,7 +76,7 @@ const activityLogger = (req, res, next) => {
             userName,
             userRole,
             action,
-            resourceType: lowerPath.split("/")[4] || "system",
+            resourceType: getResourceType(path),
             ipAddress: req.ip || req.socket?.remoteAddress || undefined,
             userAgent: req.get("user-agent") || undefined,
             path,
