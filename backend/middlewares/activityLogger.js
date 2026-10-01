@@ -60,7 +60,7 @@ const activityLogger = (req, res, next) => {
 
         if (lowerPath === "/api/v1/user/login" && lowerMethod === "post") action = "login";
         else if (lowerPath === "/api/v1/user/logout" && lowerMethod === "post") action = "logout";
-        else if (lowerPath === "/api/v1/user/register" && lowerMethod === "post") action = "account_registered";
+        else if (lowerPath === "/api/v1/user/register" && lowerMethod === "post") action = "api_request";
         else if (lowerPath === "/api/v1/user/google" && lowerMethod === "post") action = "login";
         else if (lowerPath.startsWith("/api/v1/user/") && lowerPath.includes("/approval") && lowerMethod === "patch") action = "account_approved";
         else if (lowerPath === "/api/v1/user/profile" && lowerMethod === "get") action = "view_page";
