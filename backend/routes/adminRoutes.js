@@ -139,30 +139,39 @@ Router.get(
         const dayStart = new Date(now.setHours(0, 0, 0, 0));
         const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-        const [loginsToday, failedLoginsToday, activeUsers, totalReports, totalUsers, recentLogs] = await Promise.all([
+        const [
+            loginsToday,
+            failedLoginsToday,
+            activeUsers,
+            totalReports,
+            totalUsers,
+            totalTasks,
+            recentLogs,
+        ] = await Promise.all([
             ActivityLog.countDocuments({ action: "login", createdAt: { $gte: dayStart } }),
             ActivityLog.countDocuments({ action: "login_failed", createdAt: { $gte: dayStart } }),
             User.countDocuments({ lastSeenAt: { $gte: weekStart } }),
             ActivityLog.countDocuments({ action: "create_report" }),
             User.countDocuments({}),
+            ActivityLog.countDocuments({ resourceType: "task" }),
             ActivityLog.find({})
                 .sort("-createdAt")
                 .limit(20)
                 .select("action userName userRole createdAt path statusCode metadata"),
         ]);
 
+        const stats = {
+            totalUsers,
+            totalTasks,
+            totalReports,
+            totalVideos: 0,
+            storageUsed: "0 MB",
+            apiCallsToday: loginsToday + failedLoginsToday,
+        };
+
         res.status(200).json({
             status: "success",
-            data: {
-                stats: {
-                    loginsToday,
-                    failedLoginsToday,
-                    activeUsersLast7d: activeUsers,
-                    totalReports,
-                    totalUsers,
-                },
-                recentActivity: recentLogs,
-            },
+            data: stats,
         });
     })
 );
@@ -173,14 +182,25 @@ Router.get(
     admin,
     asyncHandler(async (req, res) => {
         const defaultSettings = {
-            siteName: "A1 Raters",
-            fromEmail: process.env.SMTP_FROM || "noreply@a1raters.com",
-            siteDescription: "Professional AI rating platform",
-            allowRegistration: true,
-            requireEmailVerification: true,
-            requireAdminApproval: true,
-            maintenanceMode: false,
-            sessionTimeout: 480,
+            siteName: process.env.SITE_NAME || "A1 Raters",
+            fromEmail: process.env.SMTP_FROM || process.env.EMAIL_USER || "noreply@a1raters.com",
+            siteDescription: process.env.SITE_DESCRIPTION || "Professional AI rating platform",
+            allowRegistration: process.env.ALLOW_REGISTRATION !== "false",
+            requireEmailVerification: process.env.REQUIRE_EMAIL_VERIFICATION !== "false",
+            requireAdminApproval: process.env.REQUIRE_ADMIN_APPROVAL !== "false",
+            defaultRole: process.env.DEFAULT_ROLE || "user",
+            maintenanceMode: process.env.MAINTENANCE_MODE === "true",
+            maxFileSize: parseInt(process.env.MAX_FILE_SIZE || "10", 10),
+            sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || "480", 10),
+            smtpHost: process.env.SMTP_HOST || "",
+            smtpPort: parseInt(process.env.SMTP_PORT || "587", 10),
+            smtpUser: process.env.SMTP_USER || "",
+            smtpPassword: process.env.SMTP_PASSWORD || "",
+            googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+            openaiApiKey: process.env.OPENAI_API_KEY || "",
+            cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
+            cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || "",
+            cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || "",
         };
 
         res.status(200).json({ status: "success", data: defaultSettings });
@@ -197,11 +217,22 @@ Router.post(
             "allowRegistration",
             "requireEmailVerification",
             "requireAdminApproval",
+            "defaultRole",
             "maintenanceMode",
             "sessionTimeout",
+            "maxFileSize",
             "siteName",
             "siteDescription",
             "fromEmail",
+            "smtpHost",
+            "smtpPort",
+            "smtpUser",
+            "smtpPassword",
+            "googleClientId",
+            "openaiApiKey",
+            "cloudinaryCloudName",
+            "cloudinaryApiKey",
+            "cloudinaryApiSecret",
         ];
 
         const changedFields = Object.keys(updates).filter((f) => allowedFields.includes(f));
@@ -229,7 +260,7 @@ Router.post(
         res.status(200).json({
             status: "success",
             message: "Settings updated successfully",
-            data: { changedFields },
+            data: { changedFields, updatedSettings: Object.fromEntries(changedFields.map((f) => [f, updates[f]])) },
         });
     })
 );
