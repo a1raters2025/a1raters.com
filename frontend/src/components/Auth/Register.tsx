@@ -1,9 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
-import { apiClient } from '../../services/apiClient';
 import { APP_CONFIG } from '../../config/appConfig';
-import { ArrowLeft, ArrowRight, Briefcase, ChevronDown, LoaderCircle, Mail, Shield, User } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Briefcase, LoaderCircle, Mail, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PasswordField } from '../UI/PasswordField';
 
@@ -13,11 +12,7 @@ declare global {
     }
 }
 
-interface Country {
-    name: { common: string };
-    cca2: string;
-    flags: { svg?: string; png?: string };
-}
+const PROXIES = ['US', 'UK', 'Japan', 'China', 'Germany', 'France', 'Canada', 'Australia'];
 
 export const Register: React.FC = () => {
     const navigate = useNavigate();
@@ -34,9 +29,6 @@ export const Register: React.FC = () => {
 
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [countries, setCountries] = useState<Country[]>([]);
-    const [countriesLoading, setCountriesLoading] = useState(true);
-    const [countryMenuOpen, setCountryMenuOpen] = useState(false);
     const [googleReady, setGoogleReady] = useState(false);
     const EVALUATIONS = ['Core', 'Search', 'Ads', 'Map', 'AI Training'];
 
@@ -52,29 +44,6 @@ export const Register: React.FC = () => {
             setIsLoading(false);
         }
     }, [formData.proxy, formData.role, navigate]);
-
-    useEffect(() => {
-        let mounted = true;
-        apiClient.get<{ status: string; data: Country[] }>('/user/countries')
-            .then(response => {
-                if (!Array.isArray(response.data)) {
-                    throw new Error('The country service returned an invalid response.');
-                }
-                if (mounted) {
-                    setCountries(response.data.sort((a, b) => a.name.common.localeCompare(b.name.common)));
-                }
-            })
-            .catch((err: unknown) => {
-                if (mounted) {
-                    setError(err instanceof Error ? err.message : 'Unable to load countries.');
-                }
-            })
-            .finally(() => {
-                if (mounted) setCountriesLoading(false);
-            });
-
-        return () => { mounted = false; };
-    }, []);
 
     useEffect(() => {
         const clientId = APP_CONFIG.googleClientId;
@@ -230,20 +199,15 @@ export const Register: React.FC = () => {
                                     <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
                                 </div>
                             </div>
-                            <div className="relative">
+                            <div>
                                 <label className="block text-xs font-bold text-slate-300 uppercase mb-1.5 ml-1">Proxy Type</label>
-                                <button type="button" onClick={() => setCountryMenuOpen(open => !open)} className="flex w-full items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-3 text-left text-sm text-white outline-none focus:border-cyan-400">
-                                    {formData.proxy && <img src={countries.find(country => country.cca2 === formData.proxy)?.flags.svg} alt="" className="h-4 w-6 object-cover" />}
-                                    <span className="flex-1 truncate">{countries.find(country => country.cca2 === formData.proxy)?.name.common || (countriesLoading ? 'Loading countries...' : 'Select country')}</span>
-                                    <ChevronDown className="h-4 w-4 text-slate-400" />
-                                </button>
-                                {countryMenuOpen && <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-slate-700 bg-slate-900 p-1 shadow-xl">
-                                    {countries.map(country => <button type="button" key={country.cca2} onClick={() => { setFormData({ ...formData, proxy: country.cca2 }); setCountryMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm text-slate-200 hover:bg-slate-800">
-                                        <img src={country.flags.svg || country.flags.png} alt="" className="h-4 w-6 object-cover" />
-                                        <span>{country.name.common}</span>
-                                    </button>)}
-                                </div>}
-                                <Shield className="pointer-events-none absolute left-3 top-9 hidden h-4 w-4 text-slate-400" />
+                                <select
+                                    value={formData.proxy}
+                                    onChange={e => setFormData({ ...formData, proxy: e.target.value })}
+                                    className="block w-full px-3 py-3 rounded-xl border border-white/10 bg-white/5 text-white focus:bg-white/10 focus:border-cyan-400 transition-all duration-200 text-sm outline-none"
+                                >
+                                    {PROXIES.map(p => <option key={p} value={p} className="text-gray-900">{p}</option>)}
+                                </select>
                             </div>
                         </div>
 
