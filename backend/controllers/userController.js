@@ -92,7 +92,7 @@ export const addAdmin = async (req, res) => {
 
 export const registerWithGoogle = async (req, res) => {
     try {
-        const { credential, proxy } = req.body;
+        const { credential, proxy, role } = req.body;
         if (!credential) {
             return res.status(400).json({ status: 'fail', message: 'Google credential is required' });
         }
@@ -121,7 +121,7 @@ export const registerWithGoogle = async (req, res) => {
             user = await User.create({
                 userName,
                 email,
-                role: 'user',
+                role: role === 'client' ? 'client' : 'user',
                 proxy,
                 password: crypto.randomBytes(32).toString('hex'),
                 isVerified: true,
