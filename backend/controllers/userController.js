@@ -471,7 +471,7 @@ export const approveUser = async (req, res) => {
 export const getPendingUsers = async (req, res) => {
     try {
         const { page = 1, limit = 50, role } = req.query;
-        const filter = { isApproved: false, isVerified: true };
+        const filter = { isApproved: false };
         if (role) filter.role = role;
 
         const skip = (Number(page) - 1) * Number(limit);

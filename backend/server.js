@@ -72,6 +72,14 @@ const limiter = rateLimit({
     legacyHeaders: false,
 });
 
+const authLimitedPaths = new Set([
+    '/login',
+    '/register',
+    '/admin/register',
+    '/google',
+    '/resend-verification',
+]);
+
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: process.env.NODE_ENV === 'production' ? 10 : 100,
@@ -79,7 +87,7 @@ const authLimiter = rateLimit({
         status: "fail",
         message: "Too many authentication attempts, please try again later.",
     },
-    skip: (req) => process.env.NODE_ENV !== 'production',
+    skip: (req) => process.env.NODE_ENV !== 'production' || !authLimitedPaths.has(req.path),
 });
 
 app.use(express.json({ limit: "10kb" }));
