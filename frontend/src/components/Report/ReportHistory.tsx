@@ -1386,7 +1386,7 @@ export const ReportHistory: React.FC = () => {
                                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                                                         {isEditing ? (
                                                             <input
-                                                                className="border rounded px-2 py-1 w-full"
+                                                                className="border border-gray-400 rounded px-2 py-1 w-full text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
                                                                 value={editForm.profileName}
                                                                 onChange={e => setEditForm({ ...editForm, profileName: e.target.value })}
                                                             />
@@ -1396,7 +1396,7 @@ export const ReportHistory: React.FC = () => {
                                                     <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                                                         {isEditing ? (
                                                             <input
-                                                                className="border rounded px-2 py-1 w-full"
+                                                                className="border border-gray-400 rounded px-2 py-1 w-full text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
                                                                 value={editForm.email}
                                                                 onChange={e => setEditForm({ ...editForm, email: e.target.value })}
                                                             />
@@ -1436,7 +1436,7 @@ export const ReportHistory: React.FC = () => {
                                                         {isEditing ? (
                                                             <input
                                                                 type="number"
-                                                                className="border rounded px-2 py-1 w-20"
+                                                                className="border border-gray-400 rounded px-2 py-1 w-20 text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
                                                                 value={editForm.tasksWorked}
                                                                 onChange={e => setEditForm({ ...editForm, tasksWorked: e.target.value })}
                                                             />
@@ -1447,7 +1447,7 @@ export const ReportHistory: React.FC = () => {
                                                         {isEditing ? (
                                                             <input
                                                                 type="number"
-                                                                className="border rounded px-2 py-1 w-20"
+                                                                className="border border-gray-400 rounded px-2 py-1 w-20 text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
                                                                 value={editForm.hoursWorked}
                                                                 onChange={e => setEditForm({ ...editForm, hoursWorked: e.target.value })}
                                                             />
