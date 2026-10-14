@@ -27,6 +27,7 @@ declare global {
 }
 
 let googleApiPromise: Promise<GoogleIdentityApi> | null = null;
+let gsiInitialized = false;
 
 const loadGoogleIdentityApi = (): Promise<GoogleIdentityApi> => {
   if (window.google) return Promise.resolve(window.google);
@@ -60,6 +61,15 @@ const loadGoogleIdentityApi = (): Promise<GoogleIdentityApi> => {
   return loadingPromise;
 };
 
+const initializeGsi = (google: GoogleIdentityApi, callback: (response: GoogleCredentialResponse) => void) => {
+  if (gsiInitialized) return;
+  google.accounts.id.initialize({
+    client_id: APP_CONFIG.googleClientId!,
+    callback,
+  });
+  gsiInitialized = true;
+};
+
 export const useGoogleSignInButton = (onCredential: (credential: string) => Promise<void>) => {
   const buttonRef = useRef<HTMLDivElement>(null);
   const onCredentialRef = useRef(onCredential);
@@ -76,20 +86,21 @@ export const useGoogleSignInButton = (onCredential: (credential: string) => Prom
 
     let active = true;
     void loadGoogleIdentityApi().then((google) => {
-      const button = buttonRef.current;
-      if (!active || !button) return;
+      if (!active) return;
 
-      google.accounts.id.initialize({
-        client_id: clientId,
-        callback: ({ credential }) => {
-          if (credentialInFlight.current || !credential) return;
-          credentialInFlight.current = true;
-          void onCredentialRef.current(credential).then(
-            () => { credentialInFlight.current = false; },
-            () => { credentialInFlight.current = false; }
-          );
-        },
-      });
+      const button = buttonRef.current;
+      if (!button) return;
+
+      const wrappedCallback: (response: GoogleCredentialResponse) => void = ({ credential }) => {
+        if (credentialInFlight.current || !credential) return;
+        credentialInFlight.current = true;
+        void onCredentialRef.current(credential).then(
+          () => { credentialInFlight.current = false; },
+          () => { credentialInFlight.current = false; }
+        );
+      };
+
+      initializeGsi(google, wrappedCallback);
 
       button.replaceChildren();
       button.style.width = '50px';
