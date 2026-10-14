@@ -3,6 +3,14 @@ import auth from "../middlewares/auth.js";
 import admin from "../middlewares/adminMiddleware.js";
 import { ActivityLog, logActivity } from "../models/activityLog.js";
 import { User } from "../models/userSchema.js";
+import {
+  initializePaystackTransfer,
+  verifyPaystackTransfer,
+  createPaystackTransferRecipient,
+  listBanks,
+  resolveAccountNumber,
+  verifyPaystackWebhook,
+} from "../utils/paystack.js";
 
 const Router = express.Router();
 
@@ -367,6 +375,345 @@ Router.patch(
                 lastPaymentDate: rater.lastPaymentDate,
             },
         });
+    })
+);
+
+Router.post(
+    "/payments/raters/:userId/payout",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const { userId } = req.params;
+        const { amount, reason, bankCode } = req.body;
+
+        const rater = await User.findById(userId);
+        if (!rater) {
+            return res.status(404).json({ status: "fail", message: "Rater not found" });
+        }
+
+        if (rater.role !== "user") {
+            return res.status(400).json({ status: "fail", message: "User is not a rater" });
+        }
+
+        const paymentDetails = rater.paymentDetails;
+        if (!paymentDetails?.accountNumber || !paymentDetails?.bankName) {
+            return res.status(400).json({
+                status: "fail",
+                message: "Rater has not provided complete bank account details",
+            });
+        }
+
+        const availableAmount = (rater.totalEarned || 0) - (rater.totalPaid || 0);
+        const payoutAmount = amount ? Number(amount) : availableAmount;
+
+        if (payoutAmount <= 0) {
+            return res.status(400).json({ status: "fail", message: "No available amount to payout" });
+        }
+
+        if (payoutAmount > availableAmount) {
+            return res.status(400).json({ status: "fail", message: "Payout amount exceeds available balance" });
+        }
+
+        try {
+            let recipientCode = paymentDetails.recipientCode;
+
+            if (!recipientCode) {
+                const bankList = await listBanks(paymentDetails.currency || 'NGN');
+                const bank = bankList.data?.find((b) => b.name.toLowerCase().includes(paymentDetails.bankName.toLowerCase()));
+                
+                if (!bank && !bankCode) {
+                    return res.status(400).json({
+                        status: "fail",
+                        message: `Bank "${paymentDetails.bankName}" not found in Paystack. Please provide a valid bank code.`,
+                    });
+                }
+
+                const resolvedBankCode = bankCode || bank?.code;
+                if (!resolvedBankCode) {
+                    return res.status(400).json({
+                        status: "fail",
+                        message: "Could not determine bank code. Please provide bank code manually.",
+                    });
+                }
+
+                const recipientResponse = await createPaystackTransferRecipient({
+                    name: paymentDetails.accountName || rater.userName,
+                    accountNumber: paymentDetails.accountNumber,
+                    bankCode: resolvedBankCode,
+                    currency: paymentDetails.currency || 'NGN',
+                });
+
+                if (!recipientResponse.status || !recipientResponse.data?.recipient_code) {
+                    return res.status(400).json({
+                        status: "fail",
+                        message: "Failed to create Paystack transfer recipient",
+                        details: recipientResponse.message,
+                    });
+                }
+
+                recipientCode = recipientResponse.data.recipient_code;
+                rater.paymentDetails.recipientCode = recipientCode;
+                await rater.save();
+            }
+
+            const reference = `payout_${userId}_${Date.now()}`;
+            const transferResponse = await initializePaystackTransfer({
+                amount: payoutAmount,
+                recipientCode,
+                reference,
+                reason: reason || `Payout to ${rater.userName}`,
+                currency: paymentDetails.currency || 'NGN',
+            });
+
+            if (!transferResponse.status || !transferResponse.data) {
+                return res.status(400).json({
+                    status: "fail",
+                    message: "Failed to initiate Paystack transfer",
+                    details: transferResponse.message,
+                });
+            }
+
+            rater.paymentStatus = 'processing';
+            rater.lastPaymentDate = new Date();
+            await rater.save();
+
+            await logActivity({
+                userId: req.user._id,
+                userName: req.user.userName || req.user.email,
+                userRole: req.user.role,
+                action: "payout_initiated",
+                resourceType: "user",
+                resourceId: userId,
+                path: req.path,
+                method: req.method,
+                statusCode: 200,
+                metadata: {
+                    amount: payoutAmount,
+                    reference: transferResponse.data.reference,
+                    recipientCode,
+                    reason: reason || `Payout to ${rater.userName}`,
+                    transferStatus: transferResponse.data.status,
+                },
+            });
+
+            res.status(200).json({
+                status: "success",
+                message: "Payout initiated successfully",
+                data: {
+                    reference: transferResponse.data.reference,
+                    amount: payoutAmount,
+                    status: transferResponse.data.status,
+                    recipientCode,
+                    rater: {
+                        userId: rater._id,
+                        userName: rater.userName,
+                        paymentStatus: rater.paymentStatus,
+                        totalEarned: rater.totalEarned,
+                        totalPaid: rater.totalPaid,
+                        lastPaymentDate: rater.lastPaymentDate,
+                    },
+                },
+            });
+        } catch (error) {
+            console.error('Payout error:', error);
+            res.status(500).json({
+                status: "fail",
+                message: error.message || "Failed to process payout",
+            });
+        }
+    })
+);
+
+Router.get(
+    "/payments/raters/:userId/payout/:reference/verify",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const { userId, reference } = req.params;
+
+        const rater = await User.findById(userId);
+        if (!rater) {
+            return res.status(404).json({ status: "fail", message: "Rater not found" });
+        }
+
+        try {
+            const verificationResponse = await verifyPaystackTransfer(reference);
+
+            if (!verificationResponse.status || !verificationResponse.data) {
+                return res.status(400).json({
+                    status: "fail",
+                    message: "Failed to verify transfer",
+                    details: verificationResponse.message,
+                });
+            }
+
+            const transferData = verificationResponse.data;
+            const isSuccessful = transferData.status === 'success';
+
+            if (isSuccessful && rater.paymentStatus !== 'paid') {
+                const amount = transferData.amount / 100;
+                rater.totalPaid += amount;
+                rater.totalEarned -= amount;
+                rater.paymentStatus = 'paid';
+                rater.lastPaymentDate = new Date();
+                await rater.save();
+            } else if (transferData.status === 'failed' && rater.paymentStatus !== 'failed') {
+                rater.paymentStatus = 'failed';
+                await rater.save();
+            }
+
+            await logActivity({
+                userId: req.user._id,
+                userName: req.user.userName || req.user.email,
+                userRole: req.user.role,
+                action: "payout_verified",
+                resourceType: "user",
+                resourceId: userId,
+                path: req.path,
+                method: req.method,
+                statusCode: 200,
+                metadata: {
+                    reference,
+                    transferStatus: transferData.status,
+                    amount: transferData.amount / 100,
+                    raterPaymentStatus: rater.paymentStatus,
+                },
+            });
+
+            res.status(200).json({
+                status: "success",
+                message: "Transfer verification complete",
+                data: {
+                    reference,
+                    status: transferData.status,
+                    amount: transferData.amount / 100,
+                    currency: transferData.currency,
+                    paidAt: transferData.paid_at,
+                    rater: {
+                        userId: rater._id,
+                        userName: rater.userName,
+                        paymentStatus: rater.paymentStatus,
+                        totalEarned: rater.totalEarned,
+                        totalPaid: rater.totalPaid,
+                        lastPaymentDate: rater.lastPaymentDate,
+                    },
+                },
+            });
+        } catch (error) {
+            console.error('Payout verification error:', error);
+            res.status(500).json({
+                status: "fail",
+                message: error.message || "Failed to verify payout",
+            });
+        }
+    })
+);
+
+Router.get(
+    "/payments/banks",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const { currency = 'NGN' } = req.query;
+
+        try {
+            const response = await listBanks(currency);
+            res.status(200).json({
+                status: "success",
+                data: response.data || [],
+            });
+        } catch (error) {
+            console.error('List banks error:', error);
+            res.status(500).json({
+                status: "fail",
+                message: error.message || "Failed to fetch banks",
+            });
+        }
+    })
+);
+
+Router.post(
+    "/payments/resolve-account",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const { accountNumber, bankCode } = req.body;
+
+        if (!accountNumber || !bankCode) {
+            return res.status(400).json({
+                status: "fail",
+                message: "Account number and bank code are required",
+            });
+        }
+
+        try {
+            const response = await resolveAccountNumber(accountNumber, bankCode);
+            res.status(200).json({
+                status: "success",
+                data: response.data,
+            });
+        } catch (error) {
+            console.error('Resolve account error:', error);
+            res.status(500).json({
+                status: "fail",
+                message: error.message || "Failed to resolve account",
+            });
+        }
+    })
+);
+
+Router.post(
+    "/payments/webhook",
+    asyncHandler(async (req, res) => {
+        const signature = req.headers['x-paystack-signature'];
+        const payload = req.body;
+
+        if (!verifyPaystackWebhook(payload, signature)) {
+            console.warn('Invalid Paystack webhook signature');
+            return res.status(400).json({ status: "fail", message: "Invalid signature" });
+        }
+
+        const event = payload.event;
+        const data = payload.data;
+
+        try {
+            if (event === 'transfer.success' || event === 'transfer.failed' || event === 'transfer.reversed') {
+                const reference = data.reference;
+                const user = await User.findOne({ 'paymentDetails.recipientCode': data.recipient.recipient_code });
+                
+                if (user) {
+                    const isSuccess = event === 'transfer.success';
+                    user.paymentStatus = isSuccess ? 'paid' : 'failed';
+                    
+                    if (isSuccess) {
+                        const amount = data.amount / 100;
+                        user.totalPaid += amount;
+                        user.totalEarned -= amount;
+                        user.lastPaymentDate = new Date();
+                    }
+                    
+                    await user.save();
+
+                    await logActivity({
+                        userId: user._id,
+                        userName: user.userName || user.email,
+                        userRole: user.role,
+                        action: `payout_${event.replace('transfer.', '')}`,
+                        resourceType: "user",
+                        resourceId: user._id.toString(),
+                        path: '/admin/payments/webhook',
+                        method: 'POST',
+                        statusCode: 200,
+                        metadata: { reference, event, amount: data.amount / 100 },
+                    });
+                }
+            }
+
+            res.status(200).json({ status: "success", message: "Webhook processed" });
+        } catch (error) {
+            console.error('Webhook processing error:', error);
+            res.status(500).json({ status: "fail", message: "Webhook processing failed" });
+        }
     })
 );
 

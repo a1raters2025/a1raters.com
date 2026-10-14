@@ -37,6 +37,7 @@ export interface AdminStats {
   activeUsersLast7d: number;
   totalReports: number;
   totalUsers: number;
+  totalTasks: number;
 }
 
 export interface ActivityLogResponse {
@@ -72,6 +73,7 @@ export interface PaymentDetails {
   currency: string;
   isVerified: boolean;
   verifiedAt: string | null;
+  recipientCode?: string;
 }
 
 export interface RaterPayment {
@@ -94,6 +96,75 @@ export interface PaymentsResponse {
     currentPage: number;
     totalPages: number;
     totalItems: number;
+  };
+}
+
+export interface PayoutInitiateResponse {
+  status: string;
+  message: string;
+  data: {
+    reference: string;
+    amount: number;
+    status: string;
+    recipientCode: string;
+    rater: {
+      userId: string;
+      userName: string;
+      paymentStatus: string;
+      totalEarned: number;
+      totalPaid: number;
+      lastPaymentDate: string | null;
+    };
+  };
+}
+
+export interface PayoutVerifyResponse {
+  status: string;
+  message: string;
+  data: {
+    reference: string;
+    status: string;
+    amount: number;
+    currency: string;
+    paidAt: string | null;
+    rater: {
+      userId: string;
+      userName: string;
+      paymentStatus: string;
+      totalEarned: number;
+      totalPaid: number;
+      lastPaymentDate: string | null;
+    };
+  };
+}
+
+export interface Bank {
+  name: string;
+  code: string;
+  slug: string;
+  longcode: string;
+  gateway: string | null;
+  pay_with_bank: boolean;
+  active: boolean;
+  is_deleted: boolean;
+  country: string;
+  currency: string;
+  type: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BanksResponse {
+  status: string;
+  data: Bank[];
+}
+
+export interface ResolveAccountResponse {
+  status: string;
+  data: {
+    account_number: string;
+    account_name: string;
+    bank_id: number;
   };
 }
 
@@ -156,6 +227,22 @@ export const adminService = {
       `/admin/payments/raters/${userId}/process`,
       payload
     );
+  },
+
+  async initiatePayout(userId: string, payload: { amount?: number; reason?: string; bankCode?: string }): Promise<PayoutInitiateResponse> {
+    return apiClient.post<PayoutInitiateResponse>(`/admin/payments/raters/${userId}/payout`, payload);
+  },
+
+  async verifyPayout(userId: string, reference: string): Promise<PayoutVerifyResponse> {
+    return apiClient.get<PayoutVerifyResponse>(`/admin/payments/raters/${userId}/payout/${reference}/verify`);
+  },
+
+  async getBanks(currency = 'NGN'): Promise<BanksResponse> {
+    return apiClient.get<BanksResponse>(`/admin/payments/banks?currency=${currency}`);
+  },
+
+  async resolveAccount(accountNumber: string, bankCode: string): Promise<ResolveAccountResponse> {
+    return apiClient.post<ResolveAccountResponse>('/admin/payments/resolve-account', { accountNumber, bankCode });
   },
 
   async updatePaymentDetails(updates: Partial<PaymentDetails>): Promise<{ status: string; message: string; data: User }> {

@@ -301,7 +301,9 @@ export const Login: React.FC = () => {
             </div>
 
             <div className={`flex justify-center py-4 ${isLoading ? 'pointer-events-none opacity-50' : ''}`}>
-              <div ref={googleButtonRef} className="w-[50px] h-[50px] flex items-center justify-center" aria-label={googleReady ? 'Sign in with Google' : 'Loading Google sign-in'} />
+              <div className="glass-glassmorphism rounded-xl p-1 transition-all duration-200 hover:border-cyan-400/50">
+                <div ref={googleButtonRef} className="w-[50px] h-[50px] flex items-center justify-center" aria-label={googleReady ? 'Sign in with Google' : 'Loading Google sign-in'} />
+              </div>
             </div>
 
             {mode === 'rater' && (

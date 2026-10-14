@@ -108,12 +108,15 @@ export const useGoogleSignInButton = (onCredential: (credential: string) => Prom
       button.style.display = 'flex';
       button.style.justifyContent = 'center';
       button.style.alignItems = 'center';
+      button.style.padding = '0';
+      button.style.borderRadius = '12px';
       google.accounts.id.renderButton(button, {
         theme: 'outline',
         size: 'large',
         text: 'none',
         width: 50,
         height: 50,
+        borderRadius: 8,
       });
       setIsReady(true);
     }).catch((error: unknown) => {
