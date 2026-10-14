@@ -42,6 +42,19 @@ const fileSchema = new mongoose.Schema(
       type: String,
       default: "Training",
     },
+    scanStatus: {
+      type: String,
+      enum: ["pending", "processing", "completed", "failed"],
+      default: "pending",
+    },
+    scannedData: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    scanError: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,

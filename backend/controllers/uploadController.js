@@ -1,5 +1,15 @@
 import File from "../models/File.js";
 import { emitAdminUpdate } from "../utils/socket.js";
+import { scanDocument } from "../utils/geminiScan.js";
+
+const IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+const PDF_MIME = "application/pdf";
+
+const isImageUpload = (file) => {
+  if (!file) return false;
+  const mimeType = file.mimetype || file.resource_type;
+  return IMAGE_TYPES.some((t) => mimeType === t || mimeType === "image");
+};
 
 export const uploadFile = async (req, res) => {
   try {
@@ -21,17 +31,35 @@ export const uploadFile = async (req, res) => {
       uploadedBy: req.user._id,
     });
 
-    emitAdminUpdate({
-      title: "New training published",
-      message: `${file.title} is now available in the training library.`,
-      type: "success",
-    });
-
-    res.status(201).json({
-      status: "success",
-      message: "File uploaded successfully",
-      file,
-    });
+    if (isImageUpload(req.file)) {
+      const documentType = req.body.documentType || "receipt";
+      File.updateOne({ _id: file._id }, { scanStatus: "processing" }).exec();
+      res.status(201).json({
+        status: "success",
+        message: "File uploaded successfully",
+        file,
+      });
+      scanDocument(file.url, documentType)
+        .then(async (scannedData) => {
+          await File.updateOne(
+            { _id: file._id },
+            { scannedData, scanStatus: "completed" }
+          );
+        })
+        .catch(async (err) => {
+          console.error("Gemini scan failed:", err);
+          await File.updateOne(
+            { _id: file._id },
+            { scanStatus: "failed", scanError: err.message }
+          );
+        });
+    } else {
+      res.status(201).json({
+        status: "success",
+        message: "File uploaded successfully",
+        file,
+      });
+    }
   } catch (error) {
     console.error(error);
 
@@ -40,6 +68,33 @@ export const uploadFile = async (req, res) => {
       message: "File upload failed",
       error: error.message,
     });
+  }
+};
+
+export const scanFile = async (req, res) => {
+  try {
+    const file = await File.findById(req.params.id);
+    if (!file) {
+      return res.status(404).json({ status: "fail", message: "File not found" });
+    }
+
+    const documentType = req.body.documentType || "receipt";
+    file.scanStatus = "processing";
+    await file.save();
+
+    const scannedData = await scanDocument(file.url, documentType);
+    file.scannedData = scannedData;
+    file.scanStatus = "completed";
+    await file.save();
+
+    res.status(200).json({ status: "success", scannedData, file });
+  } catch (error) {
+    console.error("Scan failed:", error);
+    await File.updateOne(
+      { _id: req.params.id },
+      { scanStatus: "failed", scanError: error.message }
+    );
+    res.status(500).json({ status: "fail", message: error.message });
   }
 };
 
