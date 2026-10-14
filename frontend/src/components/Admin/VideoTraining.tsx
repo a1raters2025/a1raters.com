@@ -41,7 +41,22 @@ export const VideoTraining: React.FC = () => {
   const [error, setError] = useState('');
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
 
-  const categories = ['General', 'Onboarding', 'Task Guidelines', 'Rating Guidelines', 'Tools & Tips', 'Best Practices', 'Advanced'];
+  const categories = [
+    'General',
+    'Onboarding',
+    'Task Guidelines',
+    'Rating Guidelines',
+    'Tools & Tips',
+    'Best Practices',
+    'Advanced',
+    'Appstore Search Results',
+    'Appstore Suggestion',
+    'Appstore Tag Relevance',
+    'App Image Accessibility',
+    'AI Assits',
+    'Video Hint',
+    'Video Complete & Video Siri',
+  ];
 
   const fetchVideos = async () => {
     setLoading(true);
@@ -178,6 +193,13 @@ export const VideoTraining: React.FC = () => {
       'Tools & Tips': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
       'Best Practices': 'bg-amber-500/20 text-amber-300 border-amber-500/30',
       'Advanced': 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+      'Appstore Search Results': 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+      'Appstore Suggestion': 'bg-teal-500/20 text-teal-300 border-teal-500/30',
+      'Appstore Tag Relevance': 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30',
+      'App Image Accessibility': 'bg-lime-500/20 text-lime-300 border-lime-500/30',
+      'AI Assits': 'bg-violet-500/20 text-violet-300 border-violet-500/30',
+      'Video Hint': 'bg-orange-500/20 text-orange-300 border-orange-500/30',
+      'Video Complete & Video Siri': 'bg-pink-500/20 text-pink-300 border-pink-500/30',
     };
     return colors[category] || 'bg-slate-500/20 text-slate-300 border-slate-500/30';
   };
