@@ -46,7 +46,7 @@ const AppShellInner: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       <div className="flex-1 flex flex-col min-w-0 min-h-0 relative z-10">
         <Header />
         <div className="app-scroll flex-1 min-h-0 overflow-y-auto">
-          <main className="px-6 py-6 max-w-7xl mx-auto w-full">
+          <main className="w-full max-w-7xl mx-auto px-3 py-4 sm:px-4 sm:py-5 lg:px-6 lg:py-6">
             <AnimatePresence mode="wait">
               <motion.div
                 key={location.pathname}

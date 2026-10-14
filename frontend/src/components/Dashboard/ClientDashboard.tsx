@@ -103,8 +103,8 @@ export const ClientDashboard: React.FC = () => {
               <p className="mb-2 text-xs font-bold uppercase tracking-[0.25em] text-cyan-400">
                 Client workspace
               </p>
-              <h1 className="text-3xl font-bold tracking-tight text-white">Account Performance</h1>
-              <p className="mt-2 text-slate-400">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Account Performance</h1>
+              <p className="mt-2 text-sm sm:text-base text-slate-400">
                 Review aggregated hours, tasks, and every report submitted by all raters working on your account(s).
               </p>
             </div>
@@ -161,22 +161,22 @@ export const ClientDashboard: React.FC = () => {
         </GlassCard>
 
         {/* Tabs */}
-        <div className="flex space-x-1 mb-6 bg-white/5 p-1 rounded-lg">
+        <div className="client-dashboard-tabs grid grid-cols-2 gap-1 mb-6 bg-white/5 p-1 rounded-lg sm:flex sm:flex-wrap">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+            className={`min-w-0 justify-center flex items-center gap-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all ${activeTab === 'overview' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
           >
             <BarChart3 className="w-4 h-4" /> Overview
           </button>
           <button
             onClick={() => setActiveTab('reports')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'reports' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+            className={`min-w-0 justify-center flex items-center gap-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all ${activeTab === 'reports' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
           >
             <FileText className="w-4 h-4" /> Reports
           </button>
           <button
             onClick={() => setActiveTab('raters')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'raters' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+            className={`min-w-0 justify-center flex items-center gap-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all ${activeTab === 'raters' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
           >
             <Users className="w-4 h-4" /> Rater Breakdown
           </button>
@@ -185,7 +185,7 @@ export const ClientDashboard: React.FC = () => {
               setActiveTab('activity');
               void loadTaskActivities();
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-bold transition-all ${activeTab === 'activity' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
+            className={`min-w-0 justify-center flex items-center gap-2 px-2 sm:px-4 py-2 rounded-md text-xs sm:text-sm font-bold transition-all ${activeTab === 'activity' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-white'}`}
           >
             <Timer className="w-4 h-4" /> Task Activity
           </button>
@@ -204,7 +204,7 @@ export const ClientDashboard: React.FC = () => {
         {/* OVERVIEW TAB */}
         {activeTab === 'overview' && (
           <>
-            <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <section className="client-dashboard-stats mb-8 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-6">
               {statItems.map((item, i) => (
                 <GlassCard key={item.label} delay={i * 0.08} className="p-5">
                   <div className="flex flex-col items-center text-center">
@@ -216,7 +216,7 @@ export const ClientDashboard: React.FC = () => {
                       <item.icon className="w-5 h-5 text-cyan-400" />
                     </motion.div>
                     <p className="text-xs text-slate-400 mb-1">{item.label}</p>
-                    <p className="text-xl font-bold text-white">{item.value}</p>
+                    <p className="min-w-0 break-words text-base sm:text-xl font-bold text-white">{item.value}</p>
                   </div>
                 </GlassCard>
               ))}
