@@ -569,60 +569,60 @@ export const ReportHistory: React.FC = () => {
                                         <X className="w-5 h-5" />
                                     </button>
                                 </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Profile Name (Login)</label>
-                                        <PasswordField
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                            value={newRaterForm.username}
-                                            onChange={e => setNewRaterForm({ ...newRaterForm, username: e.target.value })}
-                                            placeholder="e.g. John Doe"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
-                                        <input
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                            value={newRaterForm.email}
-                                            onChange={e => setNewRaterForm({ ...newRaterForm, email: e.target.value })}
-                                            placeholder="email@example.com"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Evaluation</label>
-                                            <select
-                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                                value={newRaterForm.evaluation}
-                                                onChange={e => setNewRaterForm({ ...newRaterForm, evaluation: e.target.value })}
-                                            >
-                                                {['Core', 'Search', 'Ads', 'Map', 'AI Training'].map(opt => (
-                                                    <option key={opt} value={opt}>{opt}</option>
-                                                ))}
-                                            </select>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Profile Name (Login)</label>
+                                            <PasswordField
+                                                className="w-full px-3 py-2 border border-gray-400 rounded-lg text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={newRaterForm.username}
+                                                onChange={e => setNewRaterForm({ ...newRaterForm, username: e.target.value })}
+                                                placeholder="e.g. John Doe"
+                                            />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Proxy</label>
-                                            <select
-                                                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                                value={newRaterForm.proxy}
-                                                onChange={e => setNewRaterForm({ ...newRaterForm, proxy: e.target.value })}
-                                            >
-                                                {PROXIES.map(opt => (
-                                                    <option key={opt} value={opt}>{opt}</option>
-                                                ))}
-                                            </select>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Email Address</label>
+                                            <input
+                                                className="w-full px-3 py-2 border border-gray-400 rounded-lg text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={newRaterForm.email}
+                                                onChange={e => setNewRaterForm({ ...newRaterForm, email: e.target.value })}
+                                                placeholder="email@example.com"
+                                            />
                                         </div>
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
-                                        <input
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                                            value={newRaterForm.password}
-                                            onChange={e => setNewRaterForm({ ...newRaterForm, password: e.target.value })}
-                                            placeholder="Generates default if empty"
-                                        />
-                                    </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Evaluation</label>
+                                                <select
+                                                    className="w-full px-3 py-2 border border-gray-400 rounded-lg text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    value={newRaterForm.evaluation}
+                                                    onChange={e => setNewRaterForm({ ...newRaterForm, evaluation: e.target.value })}
+                                                >
+                                                    {['Core', 'Search', 'Ads', 'Map', 'AI Training'].map(opt => (
+                                                        <option key={opt} value={opt} className="text-gray-900">{opt}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Proxy</label>
+                                                <select
+                                                    className="w-full px-3 py-2 border border-gray-400 rounded-lg text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    value={newRaterForm.proxy}
+                                                    onChange={e => setNewRaterForm({ ...newRaterForm, proxy: e.target.value })}
+                                                >
+                                                    {PROXIES.map(opt => (
+                                                        <option key={opt} value={opt} className="text-gray-900">{opt}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Password</label>
+                                            <input
+                                                className="w-full px-3 py-2 border border-gray-400 rounded-lg text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={newRaterForm.password}
+                                                onChange={e => setNewRaterForm({ ...newRaterForm, password: e.target.value })}
+                                                placeholder="Generates default if empty"
+                                            />
+                                        </div>
 
                                     <button
                                         onClick={handleAdminRegister}
@@ -722,15 +722,15 @@ export const ReportHistory: React.FC = () => {
                             <div className="space-y-4">
                                 {/* DISPUTE FORM */}
                                 {invoiceType === 'Dispute' && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Dispute Reason</label>
-                                        <textarea
-                                            className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-32 resize-none"
-                                            placeholder="Describe the issue..."
-                                            value={invoiceMessage}
-                                            onChange={e => setInvoiceMessage(e.target.value)}
-                                        ></textarea>
-                                    </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Dispute Reason</label>
+                                            <textarea
+                                                className="w-full px-3 py-2 border border-gray-400 rounded-lg text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none h-32 resize-none"
+                                                placeholder="Describe the issue..."
+                                                value={invoiceMessage}
+                                                onChange={e => setInvoiceMessage(e.target.value)}
+                                            ></textarea>
+                                        </div>
                                 )}
 
                                 {/* MANUAL INVOICE BATCH FORM */}
@@ -743,27 +743,27 @@ export const ReportHistory: React.FC = () => {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                                                 <input
                                                     placeholder="Profile Name"
-                                                    className="px-3 py-2 border rounded text-sm"
+                                                    className="px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
                                                     value={currentItem.profileName}
                                                     onChange={e => setCurrentItem({ ...currentItem, profileName: e.target.value })}
                                                 />
                                                 <input
                                                     placeholder="Email"
-                                                    className="px-3 py-2 border rounded text-sm"
+                                                    className="px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
                                                     value={currentItem.email}
                                                     onChange={e => setCurrentItem({ ...currentItem, email: e.target.value })}
                                                 />
                                                 <select
-                                                    className="px-3 py-2 border rounded text-sm"
+                                                    className="px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
                                                     value={currentItem.proxy}
                                                     onChange={e => setCurrentItem({ ...currentItem, proxy: e.target.value })}
                                                 >
-                                                    <option value="">Select Proxy...</option>
-                                                    {PROXIES.map(p => <option key={p} value={p}>{p}</option>)}
+                                                    <option value="" className="text-gray-900">Select Proxy...</option>
+                                                    {PROXIES.map(p => <option key={p} value={p} className="text-gray-900">{p}</option>)}
                                                 </select>
                                                 <input
                                                     placeholder="Date Range (e.g. 12th-30th Jan)"
-                                                    className="px-3 py-2 border rounded text-sm"
+                                                    className="px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
                                                     value={currentItem.dateRange}
                                                     onChange={e => setCurrentItem({ ...currentItem, dateRange: e.target.value })}
                                                 />
@@ -771,7 +771,7 @@ export const ReportHistory: React.FC = () => {
                                                     <input
                                                         type="number"
                                                         placeholder="Hours Worked"
-                                                        className="w-full px-3 py-2 border rounded text-sm"
+                                                        className="w-full px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
                                                         value={currentItem.hours}
                                                         onChange={e => setCurrentItem({ ...currentItem, hours: e.target.value })}
                                                     />
@@ -853,42 +853,41 @@ export const ReportHistory: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* Account Details Form */}
-                                        <div className="pt-4 border-t space-y-3">
-                                            <h4 className="text-sm font-bold text-gray-800 flex items-center">
-                                                <span className="bg-blue-100 text-blue-800 p-1 rounded mr-2">🏦</span>
-                                                Account Details needed for Payment
-                                            </h4>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                <div className="md:col-span-2">
-                                                    <label className="block text-xs font-medium text-gray-500 mb-1">Bank Name</label>
-                                                    <input
-                                                        className="w-full px-3 py-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                                        placeholder="e.g. GTBank, Zenith Bank"
-                                                        value={bankDetails.bankName}
-                                                        onChange={e => setBankDetails({ ...bankDetails, bankName: e.target.value })}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-medium text-gray-500 mb-1">Account Number</label>
-                                                    <input
-                                                        className="w-full px-3 py-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                                        placeholder="0123456789"
-                                                        value={bankDetails.accountNumber}
-                                                        onChange={e => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-medium text-gray-500 mb-1">Account Name</label>
-                                                    <input
-                                                        className="w-full px-3 py-2 border rounded text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                                        placeholder="Full Name on Account"
-                                                        value={bankDetails.accountName}
-                                                        onChange={e => setBankDetails({ ...bankDetails, accountName: e.target.value })}
-                                                    />
+                                            <div className="pt-4 border-t space-y-3">
+                                                <h4 className="text-sm font-bold text-gray-800 flex items-center">
+                                                    <span className="bg-blue-100 text-blue-800 p-1 rounded mr-2">🏦</span>
+                                                    Account Details needed for Payment
+                                                </h4>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    <div className="md:col-span-2">
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Bank Name</label>
+                                                        <input
+                                                            className="w-full px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                            placeholder="e.g. GTBank, Zenith Bank"
+                                                            value={bankDetails.bankName}
+                                                            onChange={e => setBankDetails({ ...bankDetails, bankName: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Account Number</label>
+                                                        <input
+                                                            className="w-full px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                            placeholder="0123456789"
+                                                            value={bankDetails.accountNumber}
+                                                            onChange={e => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Account Name</label>
+                                                        <input
+                                                            className="w-full px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                                                            placeholder="Full Name on Account"
+                                                            value={bankDetails.accountName}
+                                                            onChange={e => setBankDetails({ ...bankDetails, accountName: e.target.value })}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
                                     </div>
                                 )}
 
