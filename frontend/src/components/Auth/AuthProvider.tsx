@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
 interface AuthProviderProps {
@@ -6,6 +7,7 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const navigate = useNavigate();
   const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
@@ -15,6 +17,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
     return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    const handleAuthChanged = () => {
+      navigate('/login', { replace: true });
+    };
+    window.addEventListener('auth-changed', handleAuthChanged);
+    return () => window.removeEventListener('auth-changed', handleAuthChanged);
+  }, [navigate]);
 
   if (!authReady) {
     return (
