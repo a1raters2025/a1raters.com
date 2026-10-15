@@ -4,6 +4,7 @@ import admin from "../middlewares/adminMiddleware.js";
 import {
   createInvoice,
   getAllInvoices,
+  getMyInvoices,
   getInvoiceById,
   getInvoicesByRater,
   updateInvoice,
@@ -15,6 +16,7 @@ import {
 const Router = express.Router();
 
 Router.route("/pending").get(auth, admin, getPendingInvoices);
+Router.route("/mine").get(auth, getMyInvoices);
 
 Router.route("/")
   .get(auth, admin, getAllInvoices)

@@ -51,6 +51,18 @@ const reportSchema = new mongoose.Schema(
       enum: ["Active", "Restricted", "Sacked", "Paid"],
       default: "Active",
     },
+    reviewStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+      index: true,
+    },
+    reviewNote: {
+      type: String,
+      trim: true,
+      maxlength: 1000,
+      default: "",
+    },
     tasksWorked: {
       type: String,
       required: [true, "Tasks worked is required"],

@@ -23,10 +23,16 @@ export interface BankDetails {
 
 export interface Invoice {
     _id?: string;
-    id: number;
+    id: number | string;
     raterName: string;
     type: 'Invoice' | 'Dispute';
-    status: 'Pending' | 'Approved' | 'Rejected' | 'Resolved' | 'Paid';
+    status: 'Pending' | 'Approved' | 'Rejected' | 'Resolved' | 'Paid' | 'Reversed';
+    source?: 'manual' | 'paystack_payout';
+    reference?: string;
+    payoutReference?: string;
+    userId?: string;
+    userEmail?: string;
+    currency?: 'NGN';
     amount?: string;
     hours?: string;
     items?: ManualReportItem[];
@@ -47,6 +53,7 @@ export interface Invoice {
     };
     reviewedAt?: string;
     paymentDate?: string;
+    reversedAt?: string;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -67,10 +74,18 @@ const INVOICE_KEY = 'a1_raters_invoices';
 
 const normalizeInvoice = (invoice: Invoice): Invoice => ({
     ...invoice,
-    id: invoice._id ? Date.now() : (invoice.id ?? Date.now()),
+    id: invoice._id ?? invoice.id ?? Date.now(),
 });
 
 export const invoiceService = {
+    async getMyInvoices(): Promise<Invoice[]> {
+        const response = await apiClient.get<{ status: string; message?: string; data: Invoice[] }>('/invoices/mine');
+        if (response.status !== 'success' || !response.data) {
+            throw new Error(response.message || 'Failed to load your invoices');
+        }
+        return response.data.map(normalizeInvoice);
+    },
+
     async getAllInvoices(params?: {
         page?: number;
         limit?: number;

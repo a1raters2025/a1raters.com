@@ -29,6 +29,7 @@ import { AdminActivityMonitor } from './components/Admin/AdminActivityMonitor';
 import { UserApprovalPage } from './components/Admin/UserApprovalPage';
 import { AdminPayments } from './components/Admin/AdminPayments';
 import { PaymentDetailsForm } from './components/Admin/PaymentDetailsForm';
+import { RaterReportReviewPage } from './components/Admin/RaterReportReviewPage';
 import { AuthProvider } from './components/Auth/AuthProvider';
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => <AppShell>{children}</AppShell>;
@@ -205,6 +206,17 @@ function App() {
               <PrivateRoute>
                 <AdminRoute>
                   <Shell><UserApprovalPage /></Shell>
+                </AdminRoute>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/admin/reports"
+            element={
+              <PrivateRoute>
+                <AdminRoute>
+                  <Shell><RaterReportReviewPage /></Shell>
                 </AdminRoute>
               </PrivateRoute>
             }

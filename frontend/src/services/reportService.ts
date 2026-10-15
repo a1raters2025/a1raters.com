@@ -24,6 +24,8 @@ export interface RequestReport {
     accountName: string;
   };
   status?: 'Active' | 'Restricted' | 'Sacked' | 'Paid';
+  reviewStatus?: 'pending' | 'approved' | 'rejected';
+  reviewNote?: string;
   submittedBy?: {
     _id: string;
     userName: string;
@@ -82,6 +84,16 @@ export interface ReportListResponse {
   };
 }
 
+export interface AdminReportReviewsResponse {
+  data: RequestReport[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+  };
+}
+
 export interface AccountSummaryItem {
   email: string;
   hasRestricted: boolean;
@@ -128,6 +140,53 @@ const normalizeAuditLog = (log: AuditLogEntry): AuditLogEntry => ({
 });
 
 export const reportService = {
+  async getAdminReportReviews(params: {
+    page?: number;
+    limit?: number;
+    category?: string;
+    reviewStatus?: 'all' | 'pending' | 'approved' | 'rejected';
+    raterName?: string;
+  }): Promise<AdminReportReviewsResponse> {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', params.page.toString());
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.category) queryParams.append('category', params.category);
+    if (params.reviewStatus) queryParams.append('reviewStatus', params.reviewStatus);
+    if (params.raterName) queryParams.append('raterName', params.raterName);
+
+    const response = await apiClient.get<{
+      status: string;
+      message?: string;
+      data: RequestReport[];
+      pagination: AdminReportReviewsResponse['pagination'];
+    }>(`/reports/admin-review?${queryParams.toString()}`);
+
+    if (response.status !== 'success' || !response.data || !response.pagination) {
+      throw new Error(response.message || 'Failed to load rater reports');
+    }
+    return {
+      data: response.data.map(normalizeReport),
+      pagination: response.pagination,
+    };
+  },
+
+  async updateReportReview(
+    id: string,
+    reviewStatus: 'approved' | 'rejected',
+    reviewNote = '',
+  ): Promise<RequestReport> {
+    const response = await apiClient.patch<{
+      status: string;
+      message?: string;
+      data: RequestReport;
+    }>(`/reports/${encodeURIComponent(id)}/review-status`, { reviewStatus, reviewNote });
+
+    if (response.status !== 'success' || !response.data) {
+      throw new Error(response.message || `Failed to ${reviewStatus === 'approved' ? 'approve' : 'reject'} report`);
+    }
+    return normalizeReport(response.data);
+  },
+
   async getAllReports(params?: {
     page?: number;
     limit?: number;

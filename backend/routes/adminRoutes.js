@@ -6,6 +6,7 @@ import admin from "../middlewares/adminMiddleware.js";
 import { ActivityLog, logActivity } from "../models/activityLog.js";
 import { User } from "../models/userSchema.js";
 import { Payout } from "../models/payout.js";
+import Invoice from "../models/Invoice.js";
 import {
   initializePaystackTransfer,
   verifyPaystackTransfer,
@@ -63,6 +64,40 @@ const applyTransferUpdate = async (reference, transferData) => {
                     }
                     payout.accountingApplied = true;
                 }
+                const recipient = await User.findById(payout.userId)
+                    .select("userName email")
+                    .session(session);
+                if (!recipient) {
+                    throw new Error("Payout recipient no longer exists");
+                }
+                await Invoice.findOneAndUpdate(
+                    { payoutReference: reference },
+                    {
+                        $set: {
+                            status: "Paid",
+                            date: now,
+                            paymentDate: now,
+                            message: "Paystack confirmed this bank transfer as successful.",
+                        },
+                        $unset: { reversedAt: 1 },
+                        $setOnInsert: {
+                            reference: `INV-${crypto.randomUUID().toUpperCase()}`,
+                            payoutReference: reference,
+                            source: "paystack_payout",
+                            userId: recipient._id,
+                            userEmail: recipient.email,
+                            raterName: recipient.userName,
+                            type: "Invoice",
+                            amount: payout.amount.toString(),
+                            currency: payout.currency,
+                            month: new Intl.DateTimeFormat("en-US", { month: "long", timeZone: "UTC" }).format(now),
+                            submittedBy: payout.initiatedBy,
+                            reviewedBy: payout.initiatedBy,
+                            reviewedAt: now,
+                        },
+                    },
+                    { new: true, upsert: true, session, runValidators: true }
+                );
                 payout.status = "success";
                 payout.paidAt = now;
                 payout.failureMessage = null;
@@ -100,6 +135,17 @@ const applyTransferUpdate = async (reference, transferData) => {
                         { session }
                     );
                 }
+                await Invoice.updateOne(
+                    { payoutReference: reference },
+                    {
+                        $set: {
+                            status: "Reversed",
+                            reversedAt: now,
+                            message: transferData.reason || "Paystack reversed this bank transfer.",
+                        },
+                    },
+                    { session }
+                );
                 payout.status = "reversed";
                 payout.failureMessage = transferData.reason || "Paystack reversed the transfer";
             } else if (payout.status !== "success" && payout.status !== "failed" && payout.status !== "reversed") {

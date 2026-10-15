@@ -7,6 +7,11 @@ export const createInvoice = async (req, res, next) => {
     const invoiceData = {
       ...req.body,
       submittedBy: req.user._id,
+      userId: req.user._id,
+      userEmail: req.user.email,
+      source: "manual",
+      reference: undefined,
+      payoutReference: undefined,
     };
 
     // Calculate total amount
@@ -77,6 +82,25 @@ export const getAllInvoices = async (req, res, next) => {
   }
 };
 
+export const getMyInvoices = async (req, res, next) => {
+  try {
+    const invoices = await Invoice.find({
+      $or: [{ userId: req.user._id }, { submittedBy: req.user._id }],
+    })
+      .populate("submittedBy", "userName email")
+      .populate("reviewedBy", "userName email")
+      .sort({ date: -1, createdAt: -1 });
+
+    res.status(200).json({
+      status: "success",
+      message: "Your invoices retrieved successfully",
+      data: invoices,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const getInvoiceById = async (req, res, next) => {
   try {
     const invoice = await Invoice.findById(req.params.id)
@@ -85,6 +109,12 @@ export const getInvoiceById = async (req, res, next) => {
 
     if (!invoice) {
       return next(new AppError("Invoice not found", 404));
+    }
+
+    const isOwner = [invoice.userId, invoice.submittedBy?._id]
+      .some((ownerId) => ownerId?.toString() === req.user._id.toString());
+    if (req.user.role !== "admin" && !isOwner) {
+      return next(new AppError("You do not have access to this invoice", 403));
     }
 
     res.status(200).json({
@@ -100,6 +130,10 @@ export const getInvoiceById = async (req, res, next) => {
 export const getInvoicesByRater = async (req, res, next) => {
   try {
     const { raterName } = req.params;
+    const isOwner = [req.user.userName, req.user.email].includes(raterName);
+    if (req.user.role !== "admin" && !isOwner) {
+      return next(new AppError("You can only view your own invoices", 403));
+    }
     const invoices = await Invoice.find({ raterName }).sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -114,6 +148,14 @@ export const getInvoicesByRater = async (req, res, next) => {
 
 export const updateInvoice = async (req, res, next) => {
   try {
+    const existingInvoice = await Invoice.findById(req.params.id);
+    if (!existingInvoice) {
+      return next(new AppError("Invoice not found", 404));
+    }
+    if (existingInvoice.source === "paystack_payout") {
+      return next(new AppError("Paystack payout receipts cannot be edited", 409));
+    }
+
     const invoice = await Invoice.findByIdAndUpdate(req.params.id, req.body, {
       returnDocument: 'after',
       runValidators: true,
@@ -152,6 +194,14 @@ export const updateInvoiceStatus = async (req, res, next) => {
 
     if (!validStatuses.includes(status)) {
       return next(new AppError("Invalid status", 400));
+    }
+
+    const existingInvoice = await Invoice.findById(req.params.id);
+    if (!existingInvoice) {
+      return next(new AppError("Invoice not found", 404));
+    }
+    if (existingInvoice.source === "paystack_payout") {
+      return next(new AppError("Paystack payout receipt status is managed by Paystack", 409));
     }
 
     const invoice = await Invoice.findByIdAndUpdate(
@@ -206,6 +256,14 @@ export const updateInvoiceStatus = async (req, res, next) => {
 
 export const deleteInvoice = async (req, res, next) => {
   try {
+    const existingInvoice = await Invoice.findById(req.params.id);
+    if (!existingInvoice) {
+      return next(new AppError("Invoice not found", 404));
+    }
+    if (existingInvoice.source === "paystack_payout") {
+      return next(new AppError("Paystack payout receipts cannot be deleted", 409));
+    }
+
     const invoice = await Invoice.findByIdAndDelete(req.params.id);
 
     if (!invoice) {

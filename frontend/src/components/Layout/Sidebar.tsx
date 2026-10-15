@@ -22,6 +22,7 @@ import {
   X,
   UserPlus,
   DollarSign,
+  ClipboardList,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMobileMenu } from '../../contexts/MobileMenuContext';
@@ -77,6 +78,7 @@ export const Sidebar: React.FC = () => {
           { label: 'Audit Log', to: '/admin/audit-log', icon: Shield, section: 'Admin', adminOnly: true },
           { label: 'Activity Monitor', to: '/admin/activity-monitor', icon: Activity, section: 'Admin', adminOnly: true },
           { label: 'User Approvals', to: '/admin/user-approvals', icon: UserPlus, section: 'Admin', adminOnly: true },
+          { label: 'View Raters’ Reports', to: '/admin/reports', icon: ClipboardList, section: 'Admin', adminOnly: true },
           { label: 'Video Training', to: '/admin/training', icon: Video, section: 'Admin', adminOnly: true },
            { label: 'Import Data', to: '/import-data', icon: FileDown, section: 'Admin', adminOnly: true },
            { label: 'System Settings', to: '/admin/settings', icon: Shield, section: 'Admin', adminOnly: true },

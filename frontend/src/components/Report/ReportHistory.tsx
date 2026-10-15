@@ -30,6 +30,7 @@ export const ReportHistory: React.FC = () => {
     const [reports, setReports] = useState<RequestReport[]>([]);
     const [activeTab, setActiveTab] = useState<'reports' | 'invoices'>('reports');
     const [invoices, setInvoices] = useState<Invoice[]>([]); // New Invoices State
+    const [invoiceError, setInvoiceError] = useState<string | null>(null);
     const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
     const [selectedEmail, setSelectedEmail] = useState<string | null>(null);
 
@@ -42,7 +43,7 @@ export const ReportHistory: React.FC = () => {
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
     const [invoiceType, setInvoiceType] = useState<'Invoice' | 'Dispute'>('Invoice');
     const [invoiceMessage, setInvoiceMessage] = useState('');
-    const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
+    const [editingInvoiceId, setEditingInvoiceId] = useState<number | string | null>(null);
 
     // Batch Manual Entry State
     const [batchItems, setBatchItems] = useState<ManualReportItem[]>([]);
@@ -58,7 +59,7 @@ export const ReportHistory: React.FC = () => {
     const [addAuditorBonus, setAddAuditorBonus] = useState(false);
 
     // Admin View Expanded Invoice State
-    const [expandedInvoiceId, setExpandedInvoiceId] = useState<number | null>(null);
+    const [expandedInvoiceId, setExpandedInvoiceId] = useState<number | string | null>(null);
 
     // Month Navigation State
     const [viewDate, setViewDate] = useState(new Date());
@@ -152,8 +153,17 @@ export const ReportHistory: React.FC = () => {
         // For now, let's assume invoiceService.getAllInvoices or similar is needed if we want to show them
         // The original code had setInvoices state but didn't populate it in fetchInvoices logic shown.
         // Let's add invoice fetching:
-        const allInvoices = await invoiceService.getAllInvoices();
-        setInvoices(allInvoices);
+        try {
+            const allInvoices = isAdmin
+                ? await invoiceService.getAllInvoices()
+                : await invoiceService.getMyInvoices();
+            setInvoices(allInvoices);
+            setInvoiceError(null);
+        } catch (error) {
+            console.error('Failed to load invoice history:', error);
+            setInvoices([]);
+            setInvoiceError('Invoice history could not be loaded. Please try again.');
+        }
 
     // viewMode intentionally omitted from deps to avoid circular dependency; init handled in separate effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -361,7 +371,7 @@ export const ReportHistory: React.FC = () => {
 
 
 
-    const handleApproveInvoice = (id: number, approve: boolean) => {
+    const handleApproveInvoice = (id: number | string, approve: boolean) => {
         if (!isAdmin) return;
 
         if (approve) {
@@ -389,12 +399,12 @@ export const ReportHistory: React.FC = () => {
         fetchInvoices();
     };
 
-    const toggleExpandInvoice = (id: number) => {
+    const toggleExpandInvoice = (id: number | string) => {
         if (expandedInvoiceId === id) setExpandedInvoiceId(null);
         else setExpandedInvoiceId(id);
     };
 
-    const handleDeleteInvoice = (id: number) => {
+    const handleDeleteInvoice = (id: number | string) => {
         // Admin can delete anything. Rater can only delete their own Pending invoices.
         if (!isAdmin) {
             const inv = invoices.find(i => i.id === id);
@@ -528,7 +538,7 @@ export const ReportHistory: React.FC = () => {
 
         // Filter by selected rater in Detail View
         if (canViewAllAccounts && viewMode === 'detail' && selectedEmail) {
-            const isSubmitter = i.raterName === selectedEmail;
+            const isSubmitter = i.raterName === selectedEmail || i.userEmail === selectedEmail;
             const hasItem = i.items && i.items.some(item => item.email === selectedEmail);
             return isSubmitter || hasItem;
         }
@@ -1151,6 +1161,7 @@ export const ReportHistory: React.FC = () => {
                                 <thead className="bg-gray-50">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
                                         {canViewAllAccounts && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rater</th>}
                                         {canViewAllAccounts && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Details</th>}
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
@@ -1162,15 +1173,17 @@ export const ReportHistory: React.FC = () => {
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {invoices
                                         .filter(inv => {
-                                            const matchesMonth = inv.month === monthName;
+                                            const matchesMonth = inv.source === 'paystack_payout' || inv.month === monthName;
                                             if (!matchesMonth) return false;
                                             if (canViewAllAccounts && viewMode === 'detail' && selectedEmail) {
-                                                const isSubmitter = inv.raterName === selectedEmail;
+                                                const isSubmitter = inv.raterName === selectedEmail || inv.userEmail === selectedEmail;
                                                 const hasItem = inv.items && inv.items.some(i => i.email === selectedEmail);
                                                 return isSubmitter || hasItem;
                                             }
                                             if (!canViewAllAccounts) {
-                                                return inv.raterName === user?.username;
+                                                return inv.raterName === user?.username ||
+                                                    inv.userEmail === user?.email ||
+                                                    inv.submittedBy?._id === user?._id;
                                             }
                                             return true;
                                         })
@@ -1180,7 +1193,12 @@ export const ReportHistory: React.FC = () => {
                                                     onClick={() => toggleExpandInvoice(invoice.id)}
                                                     className={`hover:bg-blue-50 transition-colors cursor-pointer ${expandedInvoiceId === invoice.id ? 'bg-blue-50' : ''}`}
                                                 >
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{invoice.date}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                        {new Date(invoice.paymentDate || invoice.date).toLocaleDateString()}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-xs font-mono text-gray-700">
+                                                        {invoice.reference || '—'}
+                                                    </td>
                                                     {canViewAllAccounts && (
                                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                                                             {invoice.raterName}
@@ -1200,8 +1218,8 @@ export const ReportHistory: React.FC = () => {
                                                         </td>
                                                     )}
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${invoice.type === 'Dispute' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
-                                                            {invoice.type}
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${invoice.source === 'paystack_payout' ? 'bg-emerald-100 text-emerald-800' : invoice.type === 'Dispute' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
+                                                            {invoice.source === 'paystack_payout' ? 'Payout receipt' : invoice.type}
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
@@ -1210,16 +1228,16 @@ export const ReportHistory: React.FC = () => {
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap">
                                                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${invoice.status === 'Approved' ? 'bg-green-100 text-green-800' :
-                                                            invoice.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                                                        invoice.status === 'Rejected' || invoice.status === 'Reversed' ? 'bg-red-100 text-red-800' :
                                                                 invoice.status === 'Paid' ? 'bg-blue-800 text-white' :
                                                                     'bg-yellow-100 text-yellow-800'
                                                             }`}>
-                                                            {invoice.status}
+                                                        {invoice.status === 'Reversed' ? 'Reversed' : invoice.status}
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         {/* Admin deletes anytime, Rater only if Pending */}
-                                                        {(invoice.status === 'Pending' || isAdmin) && (
+                                                        {invoice.source !== 'paystack_payout' && (invoice.status === 'Pending' || isAdmin) && (
                                                             <button
                                                                 onClick={(e) => {
                                                                     e.stopPropagation(); // Prevent toggling row
@@ -1235,13 +1253,41 @@ export const ReportHistory: React.FC = () => {
                                                 {/* EXPANDED DETAILS */}
                                                 {expandedInvoiceId === invoice.id && (
                                                     <tr>
-                                                        <td colSpan={canViewAllAccounts ? 7 : 5} className="p-0 bg-gray-50 border-b border-gray-200">
+                                                        <td colSpan={canViewAllAccounts ? 8 : 6} className="p-0 bg-gray-50 border-b border-gray-200">
                                                             <div className="p-4 pl-12">
                                                                 <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
                                                                     <h4 className="font-bold text-gray-800 mb-2 border-b pb-2 flex justify-between">
                                                                         <span>Invoice Details</span>
                                                                         <span className="text-blue-600">Total: ₦{Number(invoice.amount).toLocaleString()}</span>
                                                                     </h4>
+
+                                                                    {invoice.source === 'paystack_payout' && (
+                                                                        <div className={`mb-4 rounded-md border p-3 ${invoice.status === 'Reversed' ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'}`}>
+                                                                            <h5 className={`mb-2 text-xs font-bold uppercase ${invoice.status === 'Reversed' ? 'text-red-800' : 'text-emerald-800'}`}>
+                                                                                {invoice.status === 'Reversed' ? 'Paystack transfer reversed' : 'Paystack payment receipt'}
+                                                                            </h5>
+                                                                            <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                                                                                <div>
+                                                                                    <dt className="text-xs text-gray-500">Invoice reference</dt>
+                                                                                    <dd className="break-all font-mono font-semibold text-gray-900">{invoice.reference}</dd>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <dt className="text-xs text-gray-500">Paystack transfer reference</dt>
+                                                                                    <dd className="break-all font-mono font-semibold text-gray-900">{invoice.payoutReference}</dd>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <dt className="text-xs text-gray-500">Payment status</dt>
+                                                                                    <dd className="font-semibold text-gray-900">{invoice.status === 'Paid' ? 'Successfully paid' : invoice.status}</dd>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <dt className="text-xs text-gray-500">Payment date</dt>
+                                                                                    <dd className="font-semibold text-gray-900">
+                                                                                        {invoice.paymentDate ? new Date(invoice.paymentDate).toLocaleString() : '—'}
+                                                                                    </dd>
+                                                                                </div>
+                                                                            </dl>
+                                                                        </div>
+                                                                    )}
 
                                                                     {/* Payment Details Block */}
                                                                     {invoice.bankDetails && (
@@ -1330,8 +1376,8 @@ export const ReportHistory: React.FC = () => {
                                         ))}
                                     {invoices.length === 0 && (
                                         <tr>
-                                            <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
-                                                No invoices found for this period.
+                                            <td colSpan={canViewAllAccounts ? 8 : 6} className="px-6 py-12 text-center text-gray-500">
+                                                {invoiceError || 'No invoices found for this period.'}
                                             </td>
                                         </tr>
                                     )}

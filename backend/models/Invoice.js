@@ -51,8 +51,35 @@ const invoiceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Pending", "Approved", "Rejected", "Resolved", "Paid"],
+      enum: ["Pending", "Approved", "Rejected", "Resolved", "Paid", "Reversed"],
       default: "Pending",
+    },
+    source: {
+      type: String,
+      enum: ["manual", "paystack_payout"],
+      default: "manual",
+    },
+    reference: {
+      type: String,
+      trim: true,
+    },
+    payoutReference: {
+      type: String,
+      trim: true,
+    },
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    userEmail: {
+      type: String,
+      lowercase: true,
+      trim: true,
+    },
+    currency: {
+      type: String,
+      enum: ["NGN"],
+      default: "NGN",
     },
     amount: { type: String },
     hours: { type: String },
@@ -75,6 +102,7 @@ const invoiceSchema = new mongoose.Schema(
     },
     reviewedAt: { type: Date },
     paymentDate: { type: Date },
+    reversedAt: { type: Date },
   },
   {
     timestamps: true,
@@ -84,6 +112,9 @@ const invoiceSchema = new mongoose.Schema(
 invoiceSchema.index({ raterName: 1, date: -1 });
 invoiceSchema.index({ status: 1 });
 invoiceSchema.index({ month: 1 });
+invoiceSchema.index({ reference: 1 }, { unique: true, sparse: true });
+invoiceSchema.index({ payoutReference: 1 }, { unique: true, sparse: true });
+invoiceSchema.index({ userId: 1, date: -1 });
 
 const Invoice = mongoose.model("Invoice", invoiceSchema);
 

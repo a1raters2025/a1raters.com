@@ -5,6 +5,8 @@ import {
   createReport,
   bulkCreateReports,
   getAllReports,
+  getAdminReportReviews,
+  updateReportReviewStatus,
   getReportById,
   getReportsByEmail,
   getReportsByRater,
@@ -34,6 +36,10 @@ Router.route("/deleted").get(auth, admin, getDeletedReports);
 Router.route("/my-reports").get(auth, getMyReports);
 
 Router.route("/performance/:raterName").get(auth, admin, getRaterPerformance);
+
+Router.route("/admin-review").get(auth, admin, getAdminReportReviews);
+
+Router.route("/:id/review-status").patch(auth, admin, updateReportReviewStatus);
 
 Router.route("/")
   .get(auth, admin, getAllReports)

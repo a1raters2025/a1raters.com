@@ -49,6 +49,8 @@ export const createReport = async (req, res, next) => {
       ...req.body,
       submittedBy: req.user._id,
       submissionTime: req.body.submissionTime || new Date(),
+      reviewStatus: "pending",
+      reviewNote: "",
     };
 
     const penalty = isLateSubmission(reportData.submissionTime) ? 10000 : 0;
@@ -90,6 +92,8 @@ export const bulkCreateReports = async (req, res, next) => {
         submittedBy: req.user._id,
         submissionTime,
         latePenalty: penalty,
+        reviewStatus: "pending",
+        reviewNote: "",
       };
     });
 
@@ -158,6 +162,103 @@ export const getAllReports = async (req, res, next) => {
         totalItems: total,
         itemsPerPage: Number(limit),
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getAdminReportReviews = async (req, res, next) => {
+  try {
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+    const filter = { isDeleted: { $ne: true } };
+
+    if (req.query.category && req.query.category !== "all") {
+      filter.category = req.query.category;
+    }
+    if (req.query.reviewStatus && req.query.reviewStatus !== "all") {
+      if (req.query.reviewStatus === "pending") {
+        filter.$or = [
+          { reviewStatus: "pending" },
+          { reviewStatus: { $exists: false } },
+        ];
+      } else {
+        filter.reviewStatus = req.query.reviewStatus;
+      }
+    }
+    if (req.query.raterName) {
+      filter.raterName = { $regex: String(req.query.raterName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
+    }
+
+    const [reports, total] = await Promise.all([
+      Report.find(filter)
+        .populate("submittedBy", "userName email")
+        .populate("approvedBy", "userName email")
+        .sort({ submissionTime: -1, createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      Report.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      status: "success",
+      message: "Rater report reviews retrieved successfully",
+      data: reports,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalItems: total,
+        itemsPerPage: limit,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateReportReviewStatus = async (req, res, next) => {
+  try {
+    const { reviewStatus, reviewNote = "" } = req.body;
+    if (!["approved", "rejected"].includes(reviewStatus)) {
+      return next(new AppError("Review status must be approved or rejected", 400));
+    }
+    if (typeof reviewNote !== "string" || reviewNote.length > 1000) {
+      return next(new AppError("Review note must be 1000 characters or fewer", 400));
+    }
+
+    const report = await Report.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
+    if (!report) {
+      return next(new AppError("Report not found", 404));
+    }
+
+    const oldReviewStatus = report.reviewStatus || "pending";
+    const oldReviewNote = report.reviewNote || "";
+    report.reviewStatus = reviewStatus;
+    report.reviewNote = reviewNote.trim();
+    report.approvedBy = req.user._id;
+    report.approvedAt = new Date();
+    await report.save();
+
+    await createAuditEntry({
+      actionType: "status_change",
+      reportId: report._id,
+      fieldName: "reviewStatus",
+      oldValue: oldReviewStatus,
+      newValue: reviewStatus,
+      userId: req.user._id,
+      userName: req.user.userName,
+      ipAddress: req.ip,
+      reason: report.reviewNote || oldReviewNote,
+    });
+
+    await report.populate("submittedBy", "userName email");
+    await report.populate("approvedBy", "userName email");
+
+    res.status(200).json({
+      status: "success",
+      message: `Report ${reviewStatus} successfully`,
+      data: report,
     });
   } catch (err) {
     next(err);
