@@ -24,6 +24,7 @@ export interface User {
     createdAt?: string;
     paymentDetails?: {
         bankName?: string | null;
+        bankCode?: string | null;
         accountNumber?: string | null;
         accountName?: string | null;
         currency?: string;
@@ -33,6 +34,8 @@ export interface User {
     totalEarned?: number;
     totalPaid?: number;
     paymentStatus?: 'pending' | 'processing' | 'paid' | 'failed';
+    pendingPayoutReference?: string | null;
+    pendingPayoutAmount?: number | null;
     lastPaymentDate?: string | null;
 }
 

@@ -1,38 +1,46 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Building, User, CreditCard, DollarSign } from 'lucide-react';
+import { Save, Building, User, CreditCard, ShieldCheck } from 'lucide-react';
 import { GlassCard } from '../UI/GlassCard';
-import { adminService } from '../../services/adminService';
+import { adminService, type PaymentBank } from '../../services/adminService';
 import { authService } from '../../services/authService';
-
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD', 'JPY'];
 
 export const PaymentDetailsForm: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [verifying, setVerifying] = useState(false);
+    const [banks, setBanks] = useState<PaymentBank[]>([]);
+    const [accountVerified, setAccountVerified] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [paymentDetails, setPaymentDetails] = useState({
         bankName: '',
+        bankCode: '',
         accountNumber: '',
         accountName: '',
-        currency: 'USD',
+        currency: 'NGN',
     });
 
     const fetchPaymentDetails = async () => {
         try {
-            const response = await adminService.getPaymentDetails();
-            if (response.status === 'success' && response.data?.paymentDetails) {
-                const pd = response.data.paymentDetails;
+            const [detailsResponse, banksResponse] = await Promise.all([
+                adminService.getPaymentDetails(),
+                adminService.getPaymentBanks(),
+            ]);
+            if (detailsResponse.status === 'success' && detailsResponse.data?.paymentDetails) {
+                const pd = detailsResponse.data.paymentDetails;
                 setPaymentDetails({
                     bankName: pd.bankName || '',
+                    bankCode: pd.bankCode || '',
                     accountNumber: pd.accountNumber || '',
                     accountName: pd.accountName || '',
-                    currency: pd.currency || 'USD',
+                    currency: 'NGN',
                 });
+                setAccountVerified(Boolean(pd.isVerified && pd.bankCode));
             }
+            setBanks(banksResponse.data);
         } catch (err) {
-            console.error('Failed to fetch payment details:', err);
+            setError(err instanceof Error ? err.message : 'Unable to load bank information from Paystack');
         } finally {
             setLoading(false);
         }
@@ -45,6 +53,10 @@ export const PaymentDetailsForm: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!accountVerified) {
+            setError('Verify your bank account with Paystack before saving it.');
+            return;
+        }
         setSaving(true);
         setError('');
         setSuccess('');
@@ -61,6 +73,39 @@ export const PaymentDetailsForm: React.FC = () => {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleVerifyAccount = async () => {
+        setVerifying(true);
+        setError('');
+        setSuccess('');
+        setAccountVerified(false);
+        try {
+            const response = await adminService.resolvePaymentAccount(paymentDetails.accountNumber, paymentDetails.bankCode);
+            setPaymentDetails((current) => ({
+                ...current,
+                accountNumber: response.data.accountNumber,
+                accountName: response.data.accountName,
+            }));
+            setAccountVerified(true);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Unable to verify this bank account');
+        } finally {
+            setVerifying(false);
+        }
+    };
+
+    const handleBankChange = (bankCode: string) => {
+        const bank = banks.find((item) => item.code === bankCode);
+        setPaymentDetails((current) => ({
+            ...current,
+            bankCode,
+            bankName: bank?.name || '',
+            accountName: '',
+        }));
+        setAccountVerified(false);
+        setError('');
+        setSuccess('');
     };
 
     const user = authService.getUser();
@@ -84,13 +129,13 @@ export const PaymentDetailsForm: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                     <GlassCard className="p-4 text-center">
                         <div className="text-2xl font-bold text-cyan-400">
-                            {user?.totalEarned?.toLocaleString() || '0'}
+                            NGN {user?.totalEarned?.toLocaleString() || '0'}
                         </div>
                         <div className="text-xs text-slate-400 mt-1">Total Earned</div>
                     </GlassCard>
                     <GlassCard className="p-4 text-center">
                         <div className="text-2xl font-bold text-green-400">
-                            {user?.totalPaid?.toLocaleString() || '0'}
+                            NGN {user?.totalPaid?.toLocaleString() || '0'}
                         </div>
                         <div className="text-xs text-slate-400 mt-1">Total Paid</div>
                     </GlassCard>
@@ -116,18 +161,22 @@ export const PaymentDetailsForm: React.FC = () => {
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
-                            <label className="block text-xs font-bold text-slate-300 uppercase mb-1.5 ml-1">
-                                Bank Name
+                            <label htmlFor="payment-bank" className="block text-xs font-bold text-slate-300 uppercase mb-1.5 ml-1">
+                                Nigerian bank
                             </label>
                             <div className="relative">
-                                <input
-                                    type="text"
+                                <select
+                                    id="payment-bank"
                                     required
-                                    value={paymentDetails.bankName}
-                                    onChange={(e) => setPaymentDetails({ ...paymentDetails, bankName: e.target.value })}
-                                    className="block w-full px-4 py-3 pl-10 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:bg-white/10 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-500/20 transition-all duration-200 text-sm outline-none"
-                                    placeholder="e.g. Chase Bank, Bank of America"
-                                />
+                                    value={paymentDetails.bankCode}
+                                    onChange={(e) => handleBankChange(e.target.value)}
+                                    className="block w-full px-4 py-3 pl-10 rounded-xl border border-white/10 bg-white/5 text-white focus:bg-white/10 focus:border-cyan-400 transition-all duration-200 text-sm outline-none"
+                                >
+                                    <option value="" className="text-gray-900">Select your bank</option>
+                                    {banks.map((bank) => (
+                                        <option key={bank.code} value={bank.code} className="text-gray-900">{bank.name}</option>
+                                    ))}
+                                </select>
                                 <Building className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
                             </div>
                         </div>
@@ -140,13 +189,27 @@ export const PaymentDetailsForm: React.FC = () => {
                                 <input
                                     type="text"
                                     required
+                                    inputMode="numeric"
+                                    autoComplete="off"
+                                    maxLength={10}
                                     value={paymentDetails.accountNumber}
-                                    onChange={(e) => setPaymentDetails({ ...paymentDetails, accountNumber: e.target.value })}
+                                    onChange={(e) => {
+                                        setPaymentDetails({ ...paymentDetails, accountNumber: e.target.value.replace(/\D/g, '').slice(0, 10), accountName: '' });
+                                        setAccountVerified(false);
+                                    }}
                                     className="block w-full px-4 py-3 pl-10 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:bg-white/10 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-500/20 transition-all duration-200 text-sm outline-none"
-                                    placeholder="Your bank account number"
+                                    placeholder="10-digit account number"
                                 />
                                 <CreditCard className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
                             </div>
+                            <button
+                                type="button"
+                                onClick={handleVerifyAccount}
+                                disabled={verifying || paymentDetails.accountNumber.length !== 10 || !paymentDetails.bankCode}
+                                className="mt-2 inline-flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {verifying ? 'Verifying with Paystack…' : 'Verify bank account'}
+                            </button>
                         </div>
 
                         <div>
@@ -158,36 +221,31 @@ export const PaymentDetailsForm: React.FC = () => {
                                     type="text"
                                     required
                                     value={paymentDetails.accountName}
-                                    onChange={(e) => setPaymentDetails({ ...paymentDetails, accountName: e.target.value })}
+                                    readOnly
                                     className="block w-full px-4 py-3 pl-10 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:bg-white/10 focus:border-cyan-400 focus:ring-4 focus:ring-cyan-500/20 transition-all duration-200 text-sm outline-none"
-                                    placeholder="Full name on the bank account"
+                                    placeholder="Verified account name appears here"
                                 />
                                 <User className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
                             </div>
+                            {accountVerified && (
+                                <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-300">
+                                    <ShieldCheck size={14} /> Account verified by Paystack
+                                </p>
+                            )}
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold text-slate-300 uppercase mb-1.5 ml-1">
-                                Currency
-                            </label>
-                            <div className="relative">
-                                <select
-                                    value={paymentDetails.currency}
-                                    onChange={(e) => setPaymentDetails({ ...paymentDetails, currency: e.target.value })}
-                                    className="block w-full px-4 py-3 pl-10 rounded-xl border border-white/10 bg-white/5 text-white focus:bg-white/10 focus:border-cyan-400 transition-all duration-200 text-sm outline-none appearance-none"
-                                >
-                                    {CURRENCIES.map((c) => (
-                                        <option key={c} value={c} className="text-gray-900">{c}</option>
-                                    ))}
-                                </select>
-                                <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                            <label className="block text-xs font-bold text-slate-300 uppercase mb-1.5 ml-1">Payout currency</label>
+                            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+                                <ShieldCheck className="h-4 w-4 text-cyan-300" />
+                                NGN · Nigerian Naira
                             </div>
                         </div>
 
                         <div className="pt-4">
                             <motion.button
                                 type="submit"
-                                disabled={saving}
+                                disabled={saving || !accountVerified || banks.length === 0}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white bg-cyan-500 hover:bg-cyan-600 transition-all duration-200 shadow-lg ${

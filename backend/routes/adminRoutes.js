@@ -1,8 +1,11 @@
 import express from "express";
+import mongoose from "mongoose";
+import crypto from "crypto";
 import auth from "../middlewares/auth.js";
 import admin from "../middlewares/adminMiddleware.js";
 import { ActivityLog, logActivity } from "../models/activityLog.js";
 import { User } from "../models/userSchema.js";
+import { Payout } from "../models/payout.js";
 import {
   initializePaystackTransfer,
   verifyPaystackTransfer,
@@ -15,6 +18,105 @@ import {
 const Router = express.Router();
 
 const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const applyTransferUpdate = async (reference, transferData) => {
+    const session = await mongoose.startSession();
+    let result;
+    const incomingStatus = transferData.status;
+
+    try {
+        await session.withTransaction(async () => {
+            const payout = await Payout.findOne({ reference }).session(session);
+            if (!payout) {
+                const error = new Error("Payout reference not found");
+                error.statusCode = 404;
+                throw error;
+            }
+
+            const now = transferData.paid_at ? new Date(transferData.paid_at) : new Date();
+            const transferCode = transferData.transfer_code || payout.transferCode;
+            const normalizedStatus = ["success", "failed", "reversed"].includes(incomingStatus)
+                ? incomingStatus
+                : "processing";
+
+            if (normalizedStatus === "success") {
+                if (!Number.isFinite(Number(transferData.amount)) || Number(transferData.amount) !== Math.round(payout.amount * 100)) {
+                    throw new Error("Paystack transfer amount does not match the approved payout");
+                }
+                if (transferData.currency !== payout.currency) {
+                    throw new Error("Paystack transfer currency does not match the approved payout");
+                }
+
+                if (!payout.accountingApplied) {
+                    const user = await User.findOneAndUpdate(
+                        { _id: payout.userId, pendingPayoutReference: reference },
+                        {
+                            $inc: { totalPaid: payout.amount },
+                            $set: { paymentStatus: "paid", lastPaymentDate: now },
+                            $unset: { pendingPayoutReference: 1, pendingPayoutAmount: 1 },
+                        },
+                        { new: true, session }
+                    );
+                    if (!user) {
+                        throw new Error("Payout is no longer reserved for this user");
+                    }
+                    payout.accountingApplied = true;
+                }
+                payout.status = "success";
+                payout.paidAt = now;
+                payout.failureMessage = null;
+            } else if (normalizedStatus === "failed") {
+                if (payout.status !== "success" && payout.status !== "reversed") {
+                    await User.updateOne(
+                        { _id: payout.userId, pendingPayoutReference: reference },
+                        {
+                            $set: { paymentStatus: "failed" },
+                            $unset: { pendingPayoutReference: 1, pendingPayoutAmount: 1 },
+                        },
+                        { session }
+                    );
+                    payout.status = "failed";
+                    payout.failureMessage = transferData.reason || transferData.message || "Paystack transfer failed";
+                }
+            } else if (normalizedStatus === "reversed") {
+                if (payout.status === "success" && payout.accountingApplied) {
+                    const user = await User.findById(payout.userId).session(session);
+                    if (!user) throw new Error("Payout recipient no longer exists");
+                    const update = {
+                        $inc: { totalPaid: -payout.amount },
+                        $set: { lastPaymentDate: now },
+                    };
+                    if (!user.pendingPayoutReference) update.$set.paymentStatus = "failed";
+                    await User.updateOne({ _id: payout.userId }, update, { session });
+                    payout.accountingApplied = false;
+                } else {
+                    await User.updateOne(
+                        { _id: payout.userId, pendingPayoutReference: reference },
+                        {
+                            $set: { paymentStatus: "failed" },
+                            $unset: { pendingPayoutReference: 1, pendingPayoutAmount: 1 },
+                        },
+                        { session }
+                    );
+                }
+                payout.status = "reversed";
+                payout.failureMessage = transferData.reason || "Paystack reversed the transfer";
+            } else if (payout.status !== "success" && payout.status !== "failed" && payout.status !== "reversed") {
+                payout.status = incomingStatus === "unknown" ? "unknown" : "processing";
+            }
+
+            payout.paystackStatus = incomingStatus || payout.paystackStatus;
+            payout.transferCode = transferCode;
+            await payout.save({ session });
+            result = payout.toObject();
+        });
+    } finally {
+        await session.endSession();
+    }
+
+    return result;
+};
 
 Router.get(
     "/activity",
@@ -273,17 +375,22 @@ Router.get(
     auth,
     admin,
     asyncHandler(async (req, res) => {
-        const { page = 1, limit = 50, paymentStatus } = req.query;
-        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+        const skip = (page - 1) * limit;
         const filter = { role: "user" };
-        if (paymentStatus) filter.paymentStatus = paymentStatus;
+        if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus;
+        if (req.query.search) {
+            const search = new RegExp(escapeRegex(String(req.query.search).trim()), "i");
+            filter.$or = [{ userName: search }, { email: search }, { proxy: search }];
+        }
 
         const [raters, total] = await Promise.all([
             User.find(filter)
-                .select("userName email proxy paymentDetails totalEarned totalPaid paymentStatus lastPaymentDate createdAt")
+                .select("userName email proxy paymentDetails totalEarned totalPaid paymentStatus pendingPayoutReference pendingPayoutAmount lastPaymentDate createdAt")
                 .sort("-createdAt")
                 .skip(skip)
-                .limit(parseInt(limit)),
+                .limit(limit),
             User.countDocuments(filter),
         ]);
 
@@ -291,10 +398,65 @@ Router.get(
             status: "success",
             data: raters,
             pagination: {
-                currentPage: parseInt(page),
-                totalPages: Math.ceil(total / parseInt(limit)),
+                currentPage: page,
+                totalPages: Math.ceil(total / limit),
                 totalItems: total,
             },
+        });
+    })
+);
+
+Router.get(
+    "/payments/approvals",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+        const filter = {
+            role: "user",
+            $or: [
+                { paymentStatus: "processing" },
+                {
+                    $expr: {
+                        $gt: [
+                            { $subtract: [{ $ifNull: ["$totalEarned", 0] }, { $ifNull: ["$totalPaid", 0] }] },
+                            0,
+                        ],
+                    },
+                },
+            ],
+        };
+        if (req.query.search) {
+            const search = new RegExp(escapeRegex(String(req.query.search).trim()), "i");
+            filter.$and = [{ $or: [{ userName: search }, { email: search }, { proxy: search }] }];
+        }
+
+        const [users, total] = await Promise.all([
+            User.find(filter)
+                .select("userName email proxy paymentDetails.bankName paymentDetails.accountName paymentDetails.accountNumber paymentDetails.isVerified paymentDetails.currency totalEarned totalPaid paymentStatus pendingPayoutReference pendingPayoutAmount lastPaymentDate createdAt")
+                .sort({ paymentStatus: 1, createdAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit)
+                .lean(),
+            User.countDocuments(filter),
+        ]);
+        const data = users.map((user) => ({
+            ...user,
+            availableAmount: Math.max(0, (user.totalEarned || 0) - (user.totalPaid || 0)),
+            paymentDetails: {
+                ...user.paymentDetails,
+                accountNumberMasked: user.paymentDetails?.accountNumber
+                    ? `•••• ${user.paymentDetails.accountNumber.slice(-4)}`
+                    : null,
+                accountNumber: undefined,
+            },
+        }));
+
+        res.status(200).json({
+            status: "success",
+            data,
+            pagination: { currentPage: page, totalPages: Math.ceil(total / limit), totalItems: total },
         });
     })
 );
@@ -306,7 +468,7 @@ Router.get(
     asyncHandler(async (req, res) => {
         const { userId } = req.params;
         const rater = await User.findById(userId).select(
-            "userName email proxy paymentDetails totalEarned totalPaid paymentStatus lastPaymentDate createdAt"
+            "userName email proxy paymentDetails totalEarned totalPaid paymentStatus pendingPayoutReference pendingPayoutAmount lastPaymentDate createdAt"
         );
 
         if (!rater) {
@@ -317,74 +479,13 @@ Router.get(
     })
 );
 
-Router.patch(
-    "/payments/raters/:userId/process",
-    auth,
-    admin,
-    asyncHandler(async (req, res) => {
-        const { userId } = req.params;
-        const { paymentStatus, amount, notes } = req.body;
-
-        const rater = await User.findById(userId);
-        if (!rater) {
-            return res.status(404).json({ status: "fail", message: "Rater not found" });
-        }
-
-        if (rater.role !== "user") {
-            return res.status(400).json({ status: "fail", message: "User is not a rater" });
-        }
-
-        const updates = {};
-        if (paymentStatus) {
-            rater.paymentStatus = paymentStatus;
-            updates.paymentStatus = paymentStatus;
-        }
-
-        if (amount && paymentStatus === "paid") {
-            rater.totalPaid += Number(amount);
-            rater.totalEarned -= Number(amount);
-            rater.lastPaymentDate = new Date();
-            updates.totalPaid = rater.totalPaid;
-            updates.lastPaymentDate = rater.lastPaymentDate;
-        }
-
-        await rater.save();
-
-        await logActivity({
-            userId: req.user._id,
-            userName: req.user.userName || req.user.email,
-            userRole: req.user.role,
-            action: "payment_processed",
-            resourceType: "user",
-            resourceId: userId,
-            path: req.path,
-            method: req.method,
-            statusCode: 200,
-            metadata: { ...updates, notes: notes || null, amount: amount || null },
-        });
-
-        res.status(200).json({
-            status: "success",
-            message: "Payment processed successfully",
-            data: {
-                userId,
-                userName: rater.userName,
-                paymentStatus: rater.paymentStatus,
-                totalEarned: rater.totalEarned,
-                totalPaid: rater.totalPaid,
-                lastPaymentDate: rater.lastPaymentDate,
-            },
-        });
-    })
-);
-
 Router.post(
     "/payments/raters/:userId/payout",
     auth,
     admin,
     asyncHandler(async (req, res) => {
         const { userId } = req.params;
-        const { amount, reason, bankCode } = req.body;
+        const { amount, reason } = req.body;
 
         const rater = await User.findById(userId);
         if (!rater) {
@@ -396,124 +497,155 @@ Router.post(
         }
 
         const paymentDetails = rater.paymentDetails;
-        if (!paymentDetails?.accountNumber || !paymentDetails?.bankName) {
+        if (!paymentDetails?.accountNumber || !paymentDetails?.bankName || !paymentDetails?.bankCode || !paymentDetails?.isVerified) {
             return res.status(400).json({
                 status: "fail",
-                message: "Rater has not provided complete bank account details",
+                message: "Rater must save Paystack-verified Nigerian bank details before receiving a payout",
             });
         }
 
         const availableAmount = (rater.totalEarned || 0) - (rater.totalPaid || 0);
-        const payoutAmount = amount ? Number(amount) : availableAmount;
-
-        if (payoutAmount <= 0) {
+        const payoutAmount = amount === undefined ? availableAmount : Number(amount);
+        if (!Number.isFinite(payoutAmount) || payoutAmount <= 0 || Math.round(payoutAmount * 100) !== payoutAmount * 100) {
             return res.status(400).json({ status: "fail", message: "No available amount to payout" });
         }
-
         if (payoutAmount > availableAmount) {
             return res.status(400).json({ status: "fail", message: "Payout amount exceeds available balance" });
         }
 
+        let reference;
         try {
             let recipientCode = paymentDetails.recipientCode;
-
             if (!recipientCode) {
-                const bankList = await listBanks(paymentDetails.currency || 'NGN');
-                const bank = bankList.data?.find((b) => b.name.toLowerCase().includes(paymentDetails.bankName.toLowerCase()));
-                
-                if (!bank && !bankCode) {
-                    return res.status(400).json({
-                        status: "fail",
-                        message: `Bank "${paymentDetails.bankName}" not found in Paystack. Please provide a valid bank code.`,
-                    });
-                }
-
-                const resolvedBankCode = bankCode || bank?.code;
-                if (!resolvedBankCode) {
-                    return res.status(400).json({
-                        status: "fail",
-                        message: "Could not determine bank code. Please provide bank code manually.",
-                    });
-                }
-
                 const recipientResponse = await createPaystackTransferRecipient({
-                    name: paymentDetails.accountName || rater.userName,
+                    name: paymentDetails.accountName,
                     accountNumber: paymentDetails.accountNumber,
-                    bankCode: resolvedBankCode,
-                    currency: paymentDetails.currency || 'NGN',
+                    bankCode: paymentDetails.bankCode,
+                    currency: "NGN",
                 });
-
                 if (!recipientResponse.status || !recipientResponse.data?.recipient_code) {
-                    return res.status(400).json({
-                        status: "fail",
-                        message: "Failed to create Paystack transfer recipient",
-                        details: recipientResponse.message,
-                    });
+                    return res.status(502).json({ status: "fail", message: recipientResponse.message || "Paystack could not create a bank recipient" });
                 }
-
                 recipientCode = recipientResponse.data.recipient_code;
-                rater.paymentDetails.recipientCode = recipientCode;
-                await rater.save();
+                await User.updateOne(
+                    { _id: userId, "paymentDetails.bankCode": paymentDetails.bankCode, "paymentDetails.accountNumber": paymentDetails.accountNumber },
+                    { $set: { "paymentDetails.recipientCode": recipientCode } }
+                );
             }
 
-            const reference = `payout_${userId}_${Date.now()}`;
-            const transferResponse = await initializePaystackTransfer({
+            reference = `payout_${userId}_${crypto.randomUUID()}`;
+            const payout = new Payout({
+                userId,
+                initiatedBy: req.user._id,
                 amount: payoutAmount,
+                currency: "NGN",
                 recipientCode,
                 reference,
-                reason: reason || `Payout to ${rater.userName}`,
-                currency: paymentDetails.currency || 'NGN',
+                reason: typeof reason === "string" && reason.trim()
+                    ? reason.trim().slice(0, 200)
+                    : `Rater payout to ${rater.userName}`,
             });
+            await payout.save();
 
-            if (!transferResponse.status || !transferResponse.data) {
-                return res.status(400).json({
+            const lockedUser = await User.findOneAndUpdate(
+                {
+                    _id: userId,
+                    role: "user",
+                    paymentStatus: { $ne: "processing" },
+                    $expr: {
+                        $gte: [
+                            { $subtract: [{ $ifNull: ["$totalEarned", 0] }, { $ifNull: ["$totalPaid", 0] }] },
+                            payoutAmount,
+                        ],
+                    },
+                },
+                {
+                    $set: {
+                        paymentStatus: "processing",
+                        pendingPayoutReference: reference,
+                        pendingPayoutAmount: payoutAmount,
+                    },
+                },
+                { new: true }
+            );
+            if (!lockedUser) {
+                await Payout.updateOne({ reference }, { $set: { status: "cancelled" } });
+                return res.status(409).json({
                     status: "fail",
-                    message: "Failed to initiate Paystack transfer",
-                    details: transferResponse.message,
+                    message: "This payout is already processing or the available balance has changed. Refresh and try again.",
                 });
             }
 
-            rater.paymentStatus = 'processing';
-            rater.lastPaymentDate = new Date();
-            await rater.save();
-
-            await logActivity({
-                userId: req.user._id,
-                userName: req.user.userName || req.user.email,
-                userRole: req.user.role,
-                action: "payout_initiated",
-                resourceType: "user",
-                resourceId: userId,
-                path: req.path,
-                method: req.method,
-                statusCode: 200,
-                metadata: {
+            try {
+                const transferResponse = await initializePaystackTransfer({
                     amount: payoutAmount,
-                    reference: transferResponse.data.reference,
                     recipientCode,
-                    reason: reason || `Payout to ${rater.userName}`,
-                    transferStatus: transferResponse.data.status,
-                },
-            });
+                    reference,
+                    reason: payout.reason,
+                    currency: "NGN",
+                });
 
-            res.status(200).json({
-                status: "success",
-                message: "Payout initiated successfully",
-                data: {
-                    reference: transferResponse.data.reference,
-                    amount: payoutAmount,
-                    status: transferResponse.data.status,
-                    recipientCode,
-                    rater: {
-                        userId: rater._id,
-                        userName: rater.userName,
-                        paymentStatus: rater.paymentStatus,
-                        totalEarned: rater.totalEarned,
-                        totalPaid: rater.totalPaid,
-                        lastPaymentDate: rater.lastPaymentDate,
+                if (!transferResponse.status || !transferResponse.data) {
+                    await applyTransferUpdate(reference, {
+                        status: "failed",
+                        message: transferResponse.message || "Paystack declined the transfer",
+                    });
+                    return res.status(502).json({
+                        status: "fail",
+                        message: transferResponse.message || "Paystack declined the transfer",
+                    });
+                }
+
+                const transferData = transferResponse.data;
+                await Payout.updateOne(
+                    { reference },
+                    { $set: { transferCode: transferData.transfer_code || null } }
+                );
+                const updatedPayout = await applyTransferUpdate(reference, transferData);
+
+                await logActivity({
+                    userId: req.user._id,
+                    userName: req.user.userName || req.user.email,
+                    userRole: req.user.role,
+                    action: updatedPayout.status === "success" ? "payout_success" : "payout_initiated",
+                    resourceType: "user",
+                    resourceId: userId,
+                    path: req.path,
+                    method: req.method,
+                    statusCode: 200,
+                    metadata: { amount: payoutAmount, currency: "NGN", reference, transferStatus: transferData.status },
+                });
+
+                res.status(200).json({
+                    status: "success",
+                    message: updatedPayout.status === "success" ? "Bank payout completed" : "Paystack payout submitted for processing",
+                    data: {
+                        reference,
+                        amount: payoutAmount,
+                        currency: "NGN",
+                        status: updatedPayout.status,
+                        rater: {
+                            userId: lockedUser._id,
+                            userName: lockedUser.userName,
+                            paymentStatus: updatedPayout.status === "success" ? "paid" : "processing",
+                            totalEarned: lockedUser.totalEarned,
+                            totalPaid: updatedPayout.status === "success" ? (lockedUser.totalPaid || 0) + payoutAmount : lockedUser.totalPaid,
+                            lastPaymentDate: updatedPayout.paidAt || lockedUser.lastPaymentDate,
+                        },
                     },
-                },
-            });
+                });
+            } catch (transferError) {
+                await Payout.updateOne(
+                    { reference, status: { $nin: ["success", "failed", "reversed"] } },
+                    { $set: { status: "unknown", failureMessage: "Transfer response was inconclusive; verify its reference before retrying" } }
+                );
+                console.error("Paystack payout response was inconclusive:", transferError);
+                return res.status(502).json({
+                    status: "fail",
+                    message: "Paystack did not confirm the transfer. Verify this reference before attempting another payout.",
+                    data: { reference },
+                });
+            }
         } catch (error) {
             console.error('Payout error:', error);
             res.status(500).json({
@@ -531,9 +663,9 @@ Router.get(
     asyncHandler(async (req, res) => {
         const { userId, reference } = req.params;
 
-        const rater = await User.findById(userId);
-        if (!rater) {
-            return res.status(404).json({ status: "fail", message: "Rater not found" });
+        const payout = await Payout.findOne({ userId, reference });
+        if (!payout) {
+            return res.status(404).json({ status: "fail", message: "Payout reference not found for this user" });
         }
 
         try {
@@ -548,25 +680,20 @@ Router.get(
             }
 
             const transferData = verificationResponse.data;
-            const isSuccessful = transferData.status === 'success';
-
-            if (isSuccessful && rater.paymentStatus !== 'paid') {
-                const amount = transferData.amount / 100;
-                rater.totalPaid += amount;
-                rater.totalEarned -= amount;
-                rater.paymentStatus = 'paid';
-                rater.lastPaymentDate = new Date();
-                await rater.save();
-            } else if (transferData.status === 'failed' && rater.paymentStatus !== 'failed') {
-                rater.paymentStatus = 'failed';
-                await rater.save();
-            }
+            const updatedPayout = await applyTransferUpdate(reference, transferData);
+            const rater = await User.findById(userId).select("userName totalEarned totalPaid paymentStatus lastPaymentDate");
 
             await logActivity({
                 userId: req.user._id,
                 userName: req.user.userName || req.user.email,
                 userRole: req.user.role,
-                action: "payout_verified",
+                action: updatedPayout.status === "success"
+                    ? "payout_success"
+                    : updatedPayout.status === "failed"
+                        ? "payout_failed"
+                        : updatedPayout.status === "reversed"
+                            ? "payout_reversed"
+                            : "payout_initiated",
                 resourceType: "user",
                 resourceId: userId,
                 path: req.path,
@@ -576,7 +703,7 @@ Router.get(
                     reference,
                     transferStatus: transferData.status,
                     amount: transferData.amount / 100,
-                    raterPaymentStatus: rater.paymentStatus,
+                    raterPaymentStatus: rater?.paymentStatus,
                 },
             });
 
@@ -585,23 +712,23 @@ Router.get(
                 message: "Transfer verification complete",
                 data: {
                     reference,
-                    status: transferData.status,
-                    amount: transferData.amount / 100,
-                    currency: transferData.currency,
-                    paidAt: transferData.paid_at,
+                    status: updatedPayout.status,
+                    amount: updatedPayout.amount,
+                    currency: updatedPayout.currency,
+                    paidAt: updatedPayout.paidAt,
                     rater: {
-                        userId: rater._id,
-                        userName: rater.userName,
-                        paymentStatus: rater.paymentStatus,
-                        totalEarned: rater.totalEarned,
-                        totalPaid: rater.totalPaid,
-                        lastPaymentDate: rater.lastPaymentDate,
+                        userId: rater?._id,
+                        userName: rater?.userName,
+                        paymentStatus: rater?.paymentStatus,
+                        totalEarned: rater?.totalEarned,
+                        totalPaid: rater?.totalPaid,
+                        lastPaymentDate: rater?.lastPaymentDate,
                     },
                 },
             });
         } catch (error) {
             console.error('Payout verification error:', error);
-            res.status(500).json({
+            res.status(error.statusCode || 502).json({
                 status: "fail",
                 message: error.message || "Failed to verify payout",
             });
@@ -668,7 +795,7 @@ Router.post(
         const signature = req.headers['x-paystack-signature'];
         const payload = req.body;
 
-        if (!verifyPaystackWebhook(payload, signature)) {
+        if (!verifyPaystackWebhook(payload, signature, req.rawBody)) {
             console.warn('Invalid Paystack webhook signature');
             return res.status(400).json({ status: "fail", message: "Invalid signature" });
         }
@@ -678,33 +805,24 @@ Router.post(
 
         try {
             if (event === 'transfer.success' || event === 'transfer.failed' || event === 'transfer.reversed') {
-                const reference = data.reference;
-                const user = await User.findOne({ 'paymentDetails.recipientCode': data.recipient.recipient_code });
-                
-                if (user) {
-                    const isSuccess = event === 'transfer.success';
-                    user.paymentStatus = isSuccess ? 'paid' : 'failed';
-                    
-                    if (isSuccess) {
-                        const amount = data.amount / 100;
-                        user.totalPaid += amount;
-                        user.totalEarned -= amount;
-                        user.lastPaymentDate = new Date();
+                const payout = await Payout.findOne({ reference: data.reference });
+                if (payout) {
+                    if (data.recipient?.recipient_code && data.recipient.recipient_code !== payout.recipientCode) {
+                        return res.status(400).json({ status: "fail", message: "Transfer recipient does not match payout reference" });
                     }
-                    
-                    await user.save();
-
+                    const transferStatus = event.replace('transfer.', '');
+                    const updatedPayout = await applyTransferUpdate(data.reference, { ...data, status: transferStatus });
                     await logActivity({
-                        userId: user._id,
-                        userName: user.userName || user.email,
-                        userRole: user.role,
-                        action: `payout_${event.replace('transfer.', '')}`,
+                        userId: payout.initiatedBy,
+                        userName: "Paystack",
+                        userRole: "admin",
+                        action: `payout_${updatedPayout.status}`,
                         resourceType: "user",
-                        resourceId: user._id.toString(),
+                        resourceId: payout.userId.toString(),
                         path: '/admin/payments/webhook',
                         method: 'POST',
                         statusCode: 200,
-                        metadata: { reference, event, amount: data.amount / 100 },
+                        metadata: { reference: data.reference, event, amount: payout.amount, currency: payout.currency },
                     });
                 }
             }

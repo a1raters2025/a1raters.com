@@ -90,7 +90,14 @@ const authLimiter = rateLimit({
     skip: (req) => process.env.NODE_ENV !== 'production' || !authLimitedPaths.has(req.path),
 });
 
-app.use(express.json({ limit: "10kb" }));
+app.use(express.json({
+  limit: "10kb",
+  verify: (req, res, buffer) => {
+    if (req.originalUrl.split("?")[0] === "/api/v1/admin/payments/webhook") {
+      req.rawBody = Buffer.from(buffer);
+    }
+  },
+}));
 
 // express-mongo-sanitize 2.x assigns to req.query, which Express 5 exposes
 // as a read-only getter. Sanitize mutable request objects and update query

@@ -101,12 +101,16 @@ export const resolveAccountNumber = async (accountNumber, bankCode) => {
   }
 };
 
-export const verifyPaystackWebhook = (payload, signature) => {
-  const hash = crypto
-    .createHmac('sha512', process.env.PAYSTACK_SECRET_KEY)
-    .update(JSON.stringify(payload))
-    .digest('hex');
-  return hash === signature;
+export const verifyPaystackWebhook = (payload, signature, rawBody) => {
+  const secret = process.env.PAYSTACK_SECRET_KEY;
+  if (!secret || typeof signature !== 'string') return false;
+
+  const expected = crypto
+    .createHmac('sha512', secret)
+    .update(rawBody || JSON.stringify(payload))
+    .digest();
+  const provided = Buffer.from(signature, 'hex');
+  return provided.length === expected.length && crypto.timingSafeEqual(provided, expected);
 };
 
 export default paystack;

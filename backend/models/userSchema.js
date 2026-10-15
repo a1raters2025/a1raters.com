@@ -123,9 +123,11 @@ let userSchema = new mongoose.Schema({
         bankName: { type: String, default: null },
         accountNumber: { type: String, default: null },
         accountName: { type: String, default: null },
-        currency: { type: String, default: 'USD' },
+        bankCode: { type: String, default: null },
+        currency: { type: String, enum: ['NGN'], default: 'NGN' },
         isVerified: { type: Boolean, default: false },
         verifiedAt: { type: Date, default: null },
+        recipientCode: { type: String, default: null },
     },
 
     totalEarned: {
@@ -140,6 +142,14 @@ let userSchema = new mongoose.Schema({
         type: String,
         enum: ['pending', 'processing', 'paid', 'failed'],
         default: 'pending',
+    },
+    pendingPayoutReference: {
+        type: String,
+        default: null,
+    },
+    pendingPayoutAmount: {
+        type: Number,
+        default: null,
     },
     lastPaymentDate: {
         type: Date,

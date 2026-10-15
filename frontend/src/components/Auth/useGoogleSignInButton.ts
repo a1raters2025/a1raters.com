@@ -116,7 +116,6 @@ export const useGoogleSignInButton = (onCredential: (credential: string) => Prom
         text: 'none',
         width: 50,
         height: 50,
-        borderRadius: 8,
       });
       setIsReady(true);
     }).catch((error: unknown) => {

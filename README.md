@@ -44,7 +44,7 @@ Administrator registration is protected by `ADMIN_REGISTRATION_PASSCODE`. Keep t
 - Frontend: React 19, TypeScript, Vite 8, Tailwind CSS 4, Framer Motion, and Lucide icons.
 - Backend: Node.js, Express 5, MongoDB, and Mongoose.
 - Authentication: JWT access and refresh tokens, bcrypt password hashing, and optional Google Identity Services.
-- Integrations: Nodemailer for verification email and Cloudinary for uploaded files.
+- Integrations: Nodemailer for verification email, Cloudinary for uploaded files, and Paystack NGN bank payouts.
 
 ## Repository layout
 
@@ -71,6 +71,7 @@ The frontend and backend are separate npm projects and are installed and run fro
 - Node.js 22.12 or newer and npm.
 - A reachable MongoDB instance, local or hosted.
 - SMTP credentials for email verification; optional Google OAuth and Cloudinary credentials for those integrations.
+- For rater payouts, a Paystack account with Nigerian transfers enabled and a MongoDB replica set (required for atomic payout settlement).
 
 ## Local setup
 
@@ -122,6 +123,9 @@ EMAIL_PASS=
 CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
+
+# Optional Paystack NGN bank transfers. Keep the secret key server-side.
+PAYSTACK_SECRET_KEY=
 ```
 
 `PORT`, `MONGODB_URl`, and the JWT values are required for normal operation. Set `CLIENT_URL` to the browser origin hosting the frontend and `API_BASE_URL` to the publicly reachable API base URL used in verification links. In production, use a strong private JWT secret, configure HTTPS and production credentials, and restrict database and Cloudinary access appropriately.
@@ -129,6 +133,8 @@ CLOUDINARY_API_SECRET=
 For Google sign-in, configure `GOOGLE_CLIENT_ID` on the backend and `VITE_GOOGLE_CLIENT_ID` for the frontend. Both values must identify the same Google OAuth client. Without them, password-based registration and login remain available.
 
 SMTP settings are required to deliver verification messages for password-based registrations. Unverified accounts cannot sign in; if email delivery fails, configure SMTP and use the resend action on the login screen. Cloudinary settings are needed for file uploads. Google sign-in verifies the email address through Google, but new Google accounts still require administrator approval.
+
+Paystack payouts use `PAYSTACK_SECRET_KEY` on the backend only. Raters select a Nigerian bank and verify their account through Paystack in Payment Details. Administrators approve the verified NGN payout from **Admin > User Approvals**; transfer status is reconciled by verification and the signed Paystack webhook at `/api/v1/admin/payments/webhook`. Configure that URL in the Paystack dashboard, enable Transfers, and ensure the Paystack balance can fund outgoing transfers. Use a replica-set MongoDB deployment for transactions that safely settle payout records and user balances.
 
 ### Frontend
 
@@ -172,6 +178,8 @@ The API base path is `/api/v1`. Unless noted as public, endpoints require an acc
 | Users and authentication | `POST /user/register`, `POST /user/login`, `POST /user/google`, `POST /user/resend-verification`, `GET /user/verify-email/:token`, `GET /user/countries`, `GET /user/profile`, `POST /user/refresh-token` | Registration, login, verification, resend, and countries are public; profile requires authentication. Password-based accounts must verify email, and new non-admin registrations also require administrator approval. |
 | Administrator accounts | `POST /user/admin/register` | Public route protected by `ADMIN_REGISTRATION_PASSCODE`. |
 | User administration | `GET /user/users`, `PATCH /user/users/:id/approval` | Administrator. |
+| Rater bank details | `GET /user/payment-banks`, `POST /user/resolve-payment-account`, `GET /user/payment-details`, `PATCH /user/payment-details` | Authentication required; Paystack validates bank and account details. |
+| Rater payouts | `GET /admin/payments/approvals`, `POST /admin/payments/raters/:userId/payout`, `GET /admin/payments/raters/:userId/payout/:reference/verify`, `POST /admin/payments/webhook` | Administrator for approvals and verification; Paystack-signed requests for the webhook. |
 | Tasks | `GET /tasks`, `GET /tasks/categories`, `GET /tasks/proxies`, `GET /tasks/ratings`, `POST /tasks`, `POST /tasks/bulk`, `PATCH /tasks/:id`, `DELETE /tasks/:id` | Authentication required; task creation, bulk import, edits, and deletion require an administrator. |
 | Reports | `GET /reports`, `POST /reports`, `GET /reports/email/:email`, `GET /reports/rater/:raterName`, `GET /reports/summary`, `GET /reports/monthly-stats` | Authentication required; all reports and summary routes require an administrator, except report submission and scoped report reads. |
 | Invoices | `GET /invoices`, `POST /invoices`, `GET /invoices/pending`, `PATCH /invoices/:id/status` | Authentication required; listing pending invoices and changing invoice status require an administrator. |

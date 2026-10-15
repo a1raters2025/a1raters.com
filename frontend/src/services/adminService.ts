@@ -68,7 +68,9 @@ export interface ActivityFilter {
 
 export interface PaymentDetails {
   bankName: string | null;
+  bankCode?: string | null;
   accountNumber: string | null;
+  accountNumberMasked?: string | null;
   accountName: string | null;
   currency: string;
   isVerified: boolean;
@@ -85,6 +87,24 @@ export interface RaterPayment {
   totalEarned: number;
   totalPaid: number;
   paymentStatus: 'pending' | 'processing' | 'paid' | 'failed';
+  pendingPayoutReference?: string | null;
+  pendingPayoutAmount?: number | null;
+  lastPaymentDate: string | null;
+  createdAt: string;
+}
+
+export interface PayoutApproval {
+  _id: string;
+  userName: string;
+  email: string;
+  proxy?: string;
+  paymentDetails: PaymentDetails;
+  totalEarned: number;
+  totalPaid: number;
+  availableAmount: number;
+  paymentStatus: 'pending' | 'processing' | 'paid' | 'failed';
+  pendingPayoutReference?: string | null;
+  pendingPayoutAmount?: number | null;
   lastPaymentDate: string | null;
   createdAt: string;
 }
@@ -99,14 +119,24 @@ export interface PaymentsResponse {
   };
 }
 
+export interface PayoutApprovalsResponse {
+  status: string;
+  data: PayoutApproval[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+  };
+}
+
 export interface PayoutInitiateResponse {
   status: string;
   message: string;
   data: {
     reference: string;
     amount: number;
+    currency: string;
     status: string;
-    recipientCode: string;
     rater: {
       userId: string;
       userName: string;
@@ -154,6 +184,11 @@ export interface Bank {
   updatedAt: string;
 }
 
+export interface PaymentBank {
+  name: string;
+  code: string;
+}
+
 export interface BanksResponse {
   status: string;
   data: Bank[];
@@ -165,6 +200,14 @@ export interface ResolveAccountResponse {
     account_number: string;
     account_name: string;
     bank_id: number;
+  };
+}
+
+export interface PaymentAccountResolveResponse {
+  status: string;
+  data: {
+    accountNumber: string;
+    accountName: string;
   };
 }
 
@@ -222,13 +265,6 @@ export const adminService = {
     return apiClient.get<{ status: string; data: RaterPayment }>(`/admin/payments/raters/${userId}`);
   },
 
-  async processPayment(userId: string, payload: { paymentStatus: string; amount?: number; notes?: string }): Promise<{ status: string; message: string; data: Record<string, unknown> }> {
-    return apiClient.patch<{ status: string; message: string; data: Record<string, unknown> }>(
-      `/admin/payments/raters/${userId}/process`,
-      payload
-    );
-  },
-
   async initiatePayout(userId: string, payload: { amount?: number; reason?: string; bankCode?: string }): Promise<PayoutInitiateResponse> {
     return apiClient.post<PayoutInitiateResponse>(`/admin/payments/raters/${userId}/payout`, payload);
   },
@@ -243,6 +279,25 @@ export const adminService = {
 
   async resolveAccount(accountNumber: string, bankCode: string): Promise<ResolveAccountResponse> {
     return apiClient.post<ResolveAccountResponse>('/admin/payments/resolve-account', { accountNumber, bankCode });
+  },
+
+  async getPayoutApprovals(filters?: { page?: number; limit?: number; search?: string }): Promise<PayoutApprovalsResponse> {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') params.append(key, String(value));
+      });
+    }
+    const qs = params.toString();
+    return apiClient.get<PayoutApprovalsResponse>(`/admin/payments/approvals${qs ? `?${qs}` : ''}`);
+  },
+
+  async getPaymentBanks(): Promise<{ status: string; data: PaymentBank[] }> {
+    return apiClient.get<{ status: string; data: PaymentBank[] }>('/user/payment-banks');
+  },
+
+  async resolvePaymentAccount(accountNumber: string, bankCode: string): Promise<PaymentAccountResolveResponse> {
+    return apiClient.post<PaymentAccountResolveResponse>('/user/resolve-payment-account', { accountNumber, bankCode });
   },
 
   async updatePaymentDetails(updates: Partial<PaymentDetails>): Promise<{ status: string; message: string; data: User }> {

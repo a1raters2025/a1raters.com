@@ -29,6 +29,8 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
     failed: <XCircle size={14} />,
 };
 
+const formatNaira = (amount: number) => `₦${(amount || 0).toLocaleString('en-NG', { maximumFractionDigits: 2 })}`;
+
 export const AdminPayments: React.FC = () => {
     const navigate = useNavigate();
     const user = authService.getUser();
@@ -76,23 +78,33 @@ export const AdminPayments: React.FC = () => {
         load();
     }, [fetchRaters]);
 
-    const handleMarkAsPaid = async (rater: RaterPayment) => {
+    const handleApprovePayment = async (rater: RaterPayment) => {
         setProcessingPayments(prev => new Set(prev).add(rater._id));
         try {
             const availableAmount = (rater.totalEarned || 0) - (rater.totalPaid || 0);
-            await adminService.processPayment(rater._id, {
-                paymentStatus: 'paid',
-                amount: availableAmount,
-                notes: 'Manual payment processed by admin',
-            });
-            setRaters(prev => prev.map(r =>
-                r._id === rater._id
-                    ? { ...r, paymentStatus: 'paid', totalPaid: (r.totalPaid || 0) + availableAmount, lastPaymentDate: new Date().toISOString() }
-                    : r
-            ));
+            if (rater.pendingPayoutReference) {
+                const result = await adminService.verifyPayout(rater._id, rater.pendingPayoutReference);
+                alert(`Paystack transfer status: ${result.data.status}`);
+            } else {
+                if (!rater.paymentDetails?.isVerified || !rater.paymentDetails?.bankCode || availableAmount <= 0) {
+                    alert('A positive balance and Paystack-verified bank details are required.');
+                    return;
+                }
+                if (!window.confirm(`Approve a Paystack transfer of ₦${availableAmount.toLocaleString()} to ${rater.paymentDetails.accountName} at ${rater.paymentDetails.bankName}?`)) {
+                    return;
+                }
+                const result = await adminService.initiatePayout(rater._id, {
+                    amount: availableAmount,
+                    reason: `Admin-approved rater payout for ${rater.userName}`,
+                });
+                alert(result.data.status === 'success'
+                    ? 'Paystack confirmed this payout.'
+                    : `Payout submitted to Paystack. Reference: ${result.data.reference}`);
+            }
+            await fetchRaters();
         } catch (err) {
             console.error('Failed to process payment:', err);
-            alert('Failed to process payment');
+            alert(err instanceof Error ? err.message : 'Failed to process Paystack payout');
         } finally {
             setProcessingPayments(prev => {
                 const next = new Set(prev);
@@ -235,10 +247,10 @@ export const AdminPayments: React.FC = () => {
                                             </td>
                                             <td className="py-3 px-4 text-slate-300">{rater.proxy || 'N/A'}</td>
                                             <td className="py-3 px-4 text-right text-cyan-400">
-                                                ${(rater.totalEarned || 0).toLocaleString()}
+                                                {formatNaira(rater.totalEarned || 0)}
                                             </td>
                                             <td className="py-3 px-4 text-right text-green-400">
-                                                ${(rater.totalPaid || 0).toLocaleString()}
+                                                {formatNaira(rater.totalPaid || 0)}
                                             </td>
                                             <td className="py-3 px-4">
                                                 <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs ${STATUS_COLORS[rater.paymentStatus] || STATUS_COLORS.pending}`}>
@@ -257,10 +269,10 @@ export const AdminPayments: React.FC = () => {
                                                     </button>
                                                     {rater.paymentStatus !== 'paid' && (
                                                         <button
-                                                            onClick={() => handleMarkAsPaid(rater)}
-                                                            disabled={processingPayments.has(rater._id)}
+                                                            onClick={() => handleApprovePayment(rater)}
+                                                            disabled={processingPayments.has(rater._id) || (rater.paymentStatus !== 'processing' && (!rater.paymentDetails?.isVerified || !rater.paymentDetails?.bankCode || rater.totalEarned <= rater.totalPaid))}
                                                             className="px-2.5 py-1.5 text-xs bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-all disabled:opacity-50"
-                                                            title="Mark as Paid"
+                                                            title={rater.pendingPayoutReference ? 'Verify Paystack transfer' : 'Approve payment'}
                                                         >
                                                             {processingPayments.has(rater._id) ? (
                                                                 <div className="w-3 h-3 border border-green-400 border-t-transparent rounded-full animate-spin" />
@@ -310,9 +322,9 @@ export const AdminPayments: React.FC = () => {
                 <PaymentDetailsModal
                     rater={selectedRater}
                     onClose={() => setShowDetailsModal(false)}
-                    onMarkPaid={() => {
+                    onApprovePayment={() => {
                         if (selectedRater._id) {
-                            handleMarkAsPaid(selectedRater);
+                            handleApprovePayment(selectedRater);
                         }
                         setShowDetailsModal(false);
                     }}
@@ -325,8 +337,8 @@ export const AdminPayments: React.FC = () => {
 const PaymentDetailsModal: React.FC<{
     rater: RaterPayment;
     onClose: () => void;
-    onMarkPaid: () => void;
-}> = ({ rater, onClose, onMarkPaid }) => {
+    onApprovePayment: () => void;
+}> = ({ rater, onClose, onApprovePayment }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <motion.div
@@ -358,11 +370,11 @@ const PaymentDetailsModal: React.FC<{
 
                 <div className="grid grid-cols-3 gap-4 mb-6">
                     <GlassCard className="p-4 text-center">
-                        <div className="text-xl font-bold text-cyan-400">${rater.totalEarned || 0}</div>
+                        <div className="text-xl font-bold text-cyan-400">{formatNaira(rater.totalEarned || 0)}</div>
                         <div className="text-xs text-slate-400">Total Earned</div>
                     </GlassCard>
                     <GlassCard className="p-4 text-center">
-                        <div className="text-xl font-bold text-green-400">${rater.totalPaid || 0}</div>
+                        <div className="text-xl font-bold text-green-400">{formatNaira(rater.totalPaid || 0)}</div>
                         <div className="text-xs text-slate-400">Total Paid</div>
                     </GlassCard>
                     <GlassCard className="p-4 text-center">
@@ -382,11 +394,12 @@ const PaymentDetailsModal: React.FC<{
                     </button>
                     {rater.paymentStatus !== 'paid' && (
                         <button
-                            onClick={onMarkPaid}
-                            className="px-4 py-2 bg-green-500/20 text-green-400 rounded-xl hover:bg-green-500/30 transition-all flex items-center gap-2"
+                            onClick={onApprovePayment}
+                            disabled={rater.paymentStatus !== 'processing' && (!rater.paymentDetails?.isVerified || !rater.paymentDetails?.bankCode || rater.totalEarned <= rater.totalPaid)}
+                            className="px-4 py-2 bg-green-500/20 text-green-400 rounded-xl hover:bg-green-500/30 transition-all flex items-center gap-2 disabled:opacity-50"
                         >
                             <Banknote size={16} />
-                            Mark as Paid
+                            {rater.pendingPayoutReference ? 'Verify transfer' : 'Approve payment'}
                         </button>
                     )}
                 </div>
