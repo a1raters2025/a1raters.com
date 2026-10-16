@@ -2,7 +2,7 @@ import Paystack from 'paystack';
 import crypto from 'crypto';
 
 const getPaystackClient = () => {
-  const secretKey = process.env.PAYSTACK_SECRET_KEY;
+  const secretKey = (process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_API_KEY || '').trim();
   if (!secretKey) {
     throw new Error('Paystack secret key not configured');
   }
@@ -98,7 +98,7 @@ export const resolveAccountNumber = async (accountNumber, bankCode) => {
 };
 
 export const verifyPaystackWebhook = (payload, signature, rawBody) => {
-  const secret = process.env.PAYSTACK_SECRET_KEY;
+  const secret = (process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_API_KEY || '').trim();
   if (!secret || typeof signature !== 'string') return false;
 
   const expected = crypto
