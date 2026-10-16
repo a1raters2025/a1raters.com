@@ -532,11 +532,11 @@ Router.get(
         const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
         const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
         const accountFilter = {
-            role: "user",
-            $or: [
-                { "paymentDetails.method": { $in: ["paystack", "manual", "paypal"] } },
-                { "paymentDetails.method": { $exists: false }, "paymentDetails.accountNumber": { $exists: true, $nin: [null, ""] } },
-            ],
+            role: { $in: ["user", "client"] },
+            $or: ["paypalEmail", "accountNumber", "accountName", "bankName", "bankCode", "routingNumber", "iban", "swiftCode"]
+                .map((field) => ({
+                    [`paymentDetails.${field}`]: { $exists: true, $nin: [null, ""] },
+                })),
         };
         const [users, total] = await Promise.all([
             User.find({
@@ -554,7 +554,8 @@ Router.get(
             ...user,
             paymentDetails: {
                 ...user.paymentDetails,
-                method: user.paymentDetails?.method || (user.paymentDetails?.bankCode ? "paystack" : "manual"),
+                method: user.paymentDetails?.method
+                    || (user.paymentDetails?.paypalEmail ? "paypal" : user.paymentDetails?.bankCode ? "paystack" : "manual"),
                 verificationStatus: user.paymentDetails?.verificationStatus
                     || (user.paymentDetails?.isVerified ? "approved" : "pending_review"),
             },
