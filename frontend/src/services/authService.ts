@@ -23,12 +23,20 @@ export interface User {
     loginCount?: number;
     createdAt?: string;
     paymentDetails?: {
+        method?: 'paystack' | 'manual';
+        paymentProvider?: string | null;
         bankName?: string | null;
         bankCode?: string | null;
         accountNumber?: string | null;
         accountName?: string | null;
+        routingNumber?: string | null;
+        iban?: string | null;
+        swiftCode?: string | null;
+        country?: string | null;
         currency?: string;
         isVerified?: boolean;
+        verificationStatus?: 'pending_review' | 'approved' | 'rejected';
+        verificationNote?: string | null;
         verifiedAt?: string | null;
     };
     totalEarned?: number;

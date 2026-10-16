@@ -5,20 +5,43 @@ import { GlassCard } from '../UI/GlassCard';
 import { adminService, type PaymentBank } from '../../services/adminService';
 import { authService } from '../../services/authService';
 
+type PaymentFormValues = {
+    bankName: string;
+    bankCode: string;
+    accountNumber: string;
+    accountName: string;
+    currency: string;
+    paymentProvider: string;
+    routingNumber: string;
+    iban: string;
+    swiftCode: string;
+    country: string;
+    verificationStatus: '' | 'pending_review' | 'approved' | 'rejected';
+    verificationNote: string;
+};
+
 export const PaymentDetailsForm: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [banks, setBanks] = useState<PaymentBank[]>([]);
+    const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'manual'>('paystack');
     const [accountVerified, setAccountVerified] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const [paymentDetails, setPaymentDetails] = useState({
+    const [paymentDetails, setPaymentDetails] = useState<PaymentFormValues>({
         bankName: '',
         bankCode: '',
         accountNumber: '',
         accountName: '',
         currency: 'NGN',
+        paymentProvider: '',
+        routingNumber: '',
+        iban: '',
+        swiftCode: '',
+        country: '',
+        verificationStatus: '',
+        verificationNote: '',
     });
 
     const fetchPaymentDetails = async () => {
@@ -32,14 +55,22 @@ export const PaymentDetailsForm: React.FC = () => {
             const detailsResponse = detailsResult.value;
             if (detailsResponse.status === 'success' && detailsResponse.data?.paymentDetails) {
                 const pd = detailsResponse.data.paymentDetails;
+                setPaymentMethod(pd.method === 'manual' ? 'manual' : 'paystack');
                 setPaymentDetails({
                     bankName: pd.bankName || '',
                     bankCode: pd.bankCode || '',
                     accountNumber: pd.accountNumber || '',
                     accountName: pd.accountName || '',
-                    currency: 'NGN',
+                    currency: pd.currency || 'NGN',
+                    paymentProvider: pd.paymentProvider || '',
+                    routingNumber: pd.routingNumber || '',
+                    iban: pd.iban || '',
+                    swiftCode: pd.swiftCode || '',
+                    country: pd.country || '',
+                    verificationStatus: pd.verificationStatus || '',
+                    verificationNote: pd.verificationNote || '',
                 });
-                setAccountVerified(Boolean(pd.isVerified && pd.bankCode));
+                setAccountVerified(Boolean(pd.isVerified && (pd.method !== 'manual' && pd.bankCode)));
             }
         } else {
             loadErrors.push(detailsResult.reason instanceof Error ? detailsResult.reason.message : 'Unable to load saved payment details');
@@ -62,7 +93,7 @@ export const PaymentDetailsForm: React.FC = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!accountVerified) {
+        if (paymentMethod === 'paystack' && !accountVerified) {
             setError('Verify your bank account with Paystack before saving it.');
             return;
         }
@@ -71,18 +102,40 @@ export const PaymentDetailsForm: React.FC = () => {
         setSuccess('');
 
         try {
-            const response = await adminService.updatePaymentDetails(paymentDetails);
+            const response = await adminService.updatePaymentDetails({
+                method: paymentMethod,
+                bankName: paymentDetails.bankName,
+                bankCode: paymentDetails.bankCode,
+                accountNumber: paymentDetails.accountNumber,
+                accountName: paymentDetails.accountName,
+                currency: paymentDetails.currency,
+                paymentProvider: paymentDetails.paymentProvider,
+                routingNumber: paymentDetails.routingNumber,
+                iban: paymentDetails.iban,
+                swiftCode: paymentDetails.swiftCode,
+                country: paymentDetails.country,
+            });
             if (response.status === 'success') {
                 const savedDetails = response.data.paymentDetails;
+                setPaymentMethod(savedDetails.method === 'manual' ? 'manual' : 'paystack');
                 setPaymentDetails({
                     bankName: savedDetails.bankName || '',
                     bankCode: savedDetails.bankCode || '',
                     accountNumber: savedDetails.accountNumber || '',
                     accountName: savedDetails.accountName || '',
                     currency: savedDetails.currency || 'NGN',
+                    paymentProvider: savedDetails.paymentProvider || '',
+                    routingNumber: savedDetails.routingNumber || '',
+                    iban: savedDetails.iban || '',
+                    swiftCode: savedDetails.swiftCode || '',
+                    country: savedDetails.country || '',
+                    verificationStatus: savedDetails.verificationStatus || '',
+                    verificationNote: savedDetails.verificationNote || '',
                 });
-                setAccountVerified(Boolean(savedDetails.isVerified && savedDetails.bankCode));
-                setSuccess('Payment details updated successfully');
+                setAccountVerified(Boolean(savedDetails.isVerified && savedDetails.method !== 'manual' && savedDetails.bankCode));
+                setSuccess(paymentMethod === 'manual'
+                    ? 'Payment details submitted for administrator review.'
+                    : 'Payment details updated successfully');
             } else {
                 setError(response.message || 'Failed to update payment details');
             }
@@ -121,6 +174,13 @@ export const PaymentDetailsForm: React.FC = () => {
             bankName: bank?.name || '',
             accountName: '',
         }));
+        setAccountVerified(false);
+        setError('');
+        setSuccess('');
+    };
+
+    const handleMethodChange = (method: 'paystack' | 'manual') => {
+        setPaymentMethod(method);
         setAccountVerified(false);
         setError('');
         setSuccess('');
@@ -178,6 +238,30 @@ export const PaymentDetailsForm: React.FC = () => {
                     )}
 
                     <form onSubmit={handleSubmit} className="space-y-5">
+                        <div>
+                            <span className="block text-xs font-bold text-slate-300 uppercase mb-2 ml-1">Payment method</span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => handleMethodChange('paystack')}
+                                    className={`rounded-xl border p-4 text-left transition ${paymentMethod === 'paystack' ? 'border-cyan-400 bg-cyan-400/10 text-white' : 'border-white/10 bg-white/5 text-slate-300'}`}
+                                >
+                                    <span className="block font-semibold">Paystack · Nigerian bank</span>
+                                    <span className="mt-1 block text-xs text-slate-400">Verify an NGN account automatically</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleMethodChange('manual')}
+                                    className={`rounded-xl border p-4 text-left transition ${paymentMethod === 'manual' ? 'border-cyan-400 bg-cyan-400/10 text-white' : 'border-white/10 bg-white/5 text-slate-300'}`}
+                                >
+                                    <span className="block font-semibold">Other payment details</span>
+                                    <span className="mt-1 block text-xs text-slate-400">Submit an account for administrator review</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {paymentMethod === 'paystack' ? (
+                        <>
                         <div>
                             <label htmlFor="payment-bank" className="block text-xs font-bold text-slate-300 uppercase mb-1.5 ml-1">
                                 Nigerian bank
@@ -259,11 +343,64 @@ export const PaymentDetailsForm: React.FC = () => {
                                 NGN · Nigerian Naira
                             </div>
                         </div>
+                        </>
+                        ) : (
+                            <>
+                                <div className="rounded-lg border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100">
+                                    These details will be saved as unverified and sent to an administrator for review. They cannot receive automatic Paystack transfers.
+                                </div>
+                                {paymentDetails.verificationStatus && (
+                                    <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                                        Review status: <span className="font-semibold">{paymentDetails.verificationStatus.replace('_', ' ')}</span>
+                                        {paymentDetails.verificationNote && <p className="mt-1 text-slate-400">{paymentDetails.verificationNote}</p>}
+                                        {paymentDetails.verificationStatus === 'approved' && <p className="mt-1 text-slate-400">An administrator approved these details. Payouts using this method are handled manually.</p>}
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        Payment method / provider
+                                        <input required maxLength={100} value={paymentDetails.paymentProvider} onChange={(e) => setPaymentDetails((current) => ({ ...current, paymentProvider: e.target.value }))} placeholder="Bank transfer, Wise, etc." className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        Account holder name
+                                        <input required maxLength={160} value={paymentDetails.accountName} onChange={(e) => setPaymentDetails((current) => ({ ...current, accountName: e.target.value }))} className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        Account number
+                                        <input required maxLength={100} autoComplete="off" value={paymentDetails.accountNumber} onChange={(e) => setPaymentDetails((current) => ({ ...current, accountNumber: e.target.value }))} className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        Bank name
+                                        <input maxLength={100} value={paymentDetails.bankName} onChange={(e) => setPaymentDetails((current) => ({ ...current, bankName: e.target.value }))} className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        Routing number
+                                        <input maxLength={100} value={paymentDetails.routingNumber} onChange={(e) => setPaymentDetails((current) => ({ ...current, routingNumber: e.target.value }))} className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        IBAN
+                                        <input maxLength={100} autoComplete="off" value={paymentDetails.iban} onChange={(e) => setPaymentDetails((current) => ({ ...current, iban: e.target.value }))} className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        SWIFT / BIC
+                                        <input maxLength={50} value={paymentDetails.swiftCode} onChange={(e) => setPaymentDetails((current) => ({ ...current, swiftCode: e.target.value }))} className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        Country
+                                        <input required maxLength={100} value={paymentDetails.country} onChange={(e) => setPaymentDetails((current) => ({ ...current, country: e.target.value }))} className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        Currency (3-letter code)
+                                        <input required minLength={3} maxLength={3} pattern="[A-Za-z]{3}" value={paymentDetails.currency} onChange={(e) => setPaymentDetails((current) => ({ ...current, currency: e.target.value.toUpperCase() }))} placeholder="USD" className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal uppercase text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                </div>
+                            </>
+                        )}
 
                         <div className="pt-4">
                             <motion.button
                                 type="submit"
-                                disabled={saving || !accountVerified || banks.length === 0}
+                                disabled={saving || (paymentMethod === 'paystack' && (!accountVerified || banks.length === 0))}
                                 whileHover={{ scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
                                 className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white bg-cyan-500 hover:bg-cyan-600 transition-all duration-200 shadow-lg ${

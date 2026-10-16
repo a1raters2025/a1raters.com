@@ -67,14 +67,24 @@ export interface ActivityFilter {
 }
 
 export interface PaymentDetails {
+  method?: 'paystack' | 'manual';
+  paymentProvider?: string | null;
   bankName: string | null;
   bankCode?: string | null;
   accountNumber: string | null;
   accountNumberMasked?: string | null;
   accountName: string | null;
+  routingNumber?: string | null;
+  iban?: string | null;
+  swiftCode?: string | null;
+  country?: string | null;
   currency: string;
   isVerified: boolean;
+  verificationStatus?: 'pending_review' | 'approved' | 'rejected';
+  verificationNote?: string | null;
   verifiedAt: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
   recipientCode?: string;
 }
 
@@ -275,6 +285,13 @@ export const adminService = {
 
   async getRaterPaymentDetails(userId: string): Promise<{ status: string; data: RaterPayment }> {
     return apiClient.get<{ status: string; data: RaterPayment }>(`/admin/payments/raters/${userId}`);
+  },
+
+  async reviewManualPaymentDetails(userId: string, decision: 'approved' | 'rejected', note = ''): Promise<{ status: string; message: string; data: RaterPayment }> {
+    return apiClient.patch<{ status: string; message: string; data: RaterPayment }>(
+      `/admin/payments/raters/${userId}/payment-details/review`,
+      { decision, note },
+    );
   },
 
   async initiatePayout(userId: string, payload: { amount?: number; reason?: string; bankCode?: string }): Promise<PayoutInitiateResponse> {

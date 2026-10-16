@@ -140,7 +140,7 @@ Router.route('/payment-details')
     })
     .patch(auth, async (req, res) => {
         try {
-            const { bankCode, accountNumber } = req.body;
+            const { method = 'paystack' } = req.body;
             const user = await User.findById(req.user._id);
             if (!user) {
                 return res.status(404).json({ status: 'fail', message: 'User not found' });
@@ -150,6 +150,77 @@ Router.route('/payment-details')
                 return res.status(409).json({ status: 'fail', message: 'Bank details cannot be changed while a payout is processing' });
             }
 
+            if (method === 'manual') {
+                const {
+                    paymentProvider,
+                    bankName,
+                    accountNumber,
+                    accountName,
+                    routingNumber,
+                    iban,
+                    swiftCode,
+                    country,
+                    currency,
+                } = req.body;
+                const cleaned = {
+                    paymentProvider: typeof paymentProvider === 'string' ? paymentProvider.trim().slice(0, 100) : '',
+                    bankName: typeof bankName === 'string' ? bankName.trim().slice(0, 100) : '',
+                    accountNumber: typeof accountNumber === 'string' ? accountNumber.trim().slice(0, 100) : '',
+                    accountName: typeof accountName === 'string' ? accountName.trim().slice(0, 160) : '',
+                    routingNumber: typeof routingNumber === 'string' ? routingNumber.trim().slice(0, 100) : '',
+                    iban: typeof iban === 'string' ? iban.replace(/\s+/g, '').slice(0, 100).toUpperCase() : '',
+                    swiftCode: typeof swiftCode === 'string' ? swiftCode.trim().slice(0, 50).toUpperCase() : '',
+                    country: typeof country === 'string' ? country.trim().slice(0, 100) : '',
+                    currency: typeof currency === 'string' ? currency.trim().toUpperCase() : '',
+                };
+
+                if (!cleaned.paymentProvider || !cleaned.accountName || !cleaned.accountNumber || !cleaned.country || !/^[A-Z]{3}$/.test(cleaned.currency)) {
+                    return res.status(400).json({
+                        status: 'fail',
+                        message: 'Payment method, account holder, account number, country, and a 3-letter currency code are required',
+                    });
+                }
+
+                user.paymentDetails = {
+                    method: 'manual',
+                    paymentProvider: cleaned.paymentProvider,
+                    bankName: cleaned.bankName || null,
+                    bankCode: null,
+                    accountNumber: cleaned.accountNumber,
+                    accountName: cleaned.accountName,
+                    routingNumber: cleaned.routingNumber || null,
+                    iban: cleaned.iban || null,
+                    swiftCode: cleaned.swiftCode || null,
+                    country: cleaned.country,
+                    currency: cleaned.currency,
+                    isVerified: false,
+                    verificationStatus: 'pending_review',
+                    verificationNote: null,
+                    verifiedAt: null,
+                    reviewedBy: null,
+                    reviewedAt: null,
+                    recipientCode: null,
+                };
+
+                await user.save();
+                return res.status(200).json({
+                    status: 'success',
+                    message: 'Payment details saved and submitted for administrator review',
+                    data: {
+                        paymentDetails: user.paymentDetails,
+                        totalEarned: user.totalEarned,
+                        totalPaid: user.totalPaid,
+                        paymentStatus: user.paymentStatus,
+                        lastPaymentDate: user.lastPaymentDate,
+                    },
+                });
+            }
+
+            if (method !== 'paystack') {
+                return res.status(400).json({ status: 'fail', message: 'Select a supported payment method' });
+            }
+
+            const { bankCode, accountNumber } = req.body;
             if (typeof accountNumber !== 'string' || !/^\d{10}$/.test(accountNumber) || typeof bankCode !== 'string' || !bankCode.trim()) {
                 return res.status(400).json({ status: 'fail', message: 'Enter a valid 10-digit account number and select a bank' });
             }
@@ -180,13 +251,19 @@ Router.route('/payment-details')
             }
 
             user.paymentDetails = {
+                method: 'paystack',
+                paymentProvider: 'Paystack',
                 bankName: bank.name,
                 bankCode: bank.code,
                 accountNumber: accountResponse.data.account_number || accountNumber,
                 accountName: accountResponse.data.account_name,
                 currency: 'NGN',
                 isVerified: true,
+                verificationStatus: 'approved',
+                verificationNote: null,
                 verifiedAt: new Date(),
+                reviewedBy: null,
+                reviewedAt: null,
                 recipientCode: null,
             };
 
@@ -209,8 +286,8 @@ Router.route('/payment-details')
                 },
             });
         } catch (err) {
-            console.error('Failed to save verified bank details:', err);
-            res.status(500).json({ status: 'fail', message: 'Unable to save verified bank details' });
+            console.error('Failed to update payment details:', err);
+            res.status(500).json({ status: 'fail', message: 'Unable to update payment details' });
         }
     })
 

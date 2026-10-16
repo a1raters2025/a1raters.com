@@ -433,16 +433,32 @@ Router.get(
 
         const [raters, total] = await Promise.all([
             User.find(filter)
-                .select("userName email proxy paymentDetails totalEarned totalPaid paymentStatus pendingPayoutReference pendingPayoutAmount lastPaymentDate createdAt")
+                .select("userName email proxy paymentDetails.method paymentDetails.paymentProvider paymentDetails.bankName paymentDetails.accountName paymentDetails.accountNumber paymentDetails.bankCode paymentDetails.routingNumber paymentDetails.iban paymentDetails.swiftCode paymentDetails.country paymentDetails.currency paymentDetails.isVerified paymentDetails.verificationStatus paymentDetails.verificationNote paymentDetails.verifiedAt paymentDetails.reviewedAt totalEarned totalPaid paymentStatus pendingPayoutReference pendingPayoutAmount lastPaymentDate createdAt")
                 .sort("-createdAt")
                 .skip(skip)
                 .limit(limit),
             User.countDocuments(filter),
         ]);
+        const data = raters.map((rater) => {
+            const item = rater.toObject();
+            return {
+                ...item,
+                paymentDetails: {
+                    ...item.paymentDetails,
+                    accountNumberMasked: item.paymentDetails?.accountNumber
+                        ? `•••• ${item.paymentDetails.accountNumber.slice(-4)}`
+                        : null,
+                    accountNumber: undefined,
+                    iban: item.paymentDetails?.iban ? `•••• ${item.paymentDetails.iban.slice(-4)}` : null,
+                    routingNumber: item.paymentDetails?.routingNumber ? `•••• ${item.paymentDetails.routingNumber.slice(-4)}` : null,
+                    swiftCode: item.paymentDetails?.swiftCode ? `•••• ${item.paymentDetails.swiftCode.slice(-4)}` : null,
+                },
+            };
+        });
 
         res.status(200).json({
             status: "success",
-            data: raters,
+            data,
             pagination: {
                 currentPage: page,
                 totalPages: Math.ceil(total / limit),
@@ -480,7 +496,7 @@ Router.get(
 
         const [users, total] = await Promise.all([
             User.find(filter)
-                .select("userName email proxy paymentDetails.bankName paymentDetails.accountName paymentDetails.accountNumber paymentDetails.isVerified paymentDetails.currency totalEarned totalPaid paymentStatus pendingPayoutReference pendingPayoutAmount lastPaymentDate createdAt")
+                .select("userName email proxy paymentDetails.method paymentDetails.paymentProvider paymentDetails.bankName paymentDetails.accountName paymentDetails.accountNumber paymentDetails.isVerified paymentDetails.verificationStatus paymentDetails.currency paymentDetails.country paymentDetails.routingNumber paymentDetails.iban paymentDetails.swiftCode totalEarned totalPaid paymentStatus pendingPayoutReference pendingPayoutAmount lastPaymentDate createdAt")
                 .sort({ paymentStatus: 1, createdAt: -1 })
                 .skip((page - 1) * limit)
                 .limit(limit)
@@ -525,6 +541,48 @@ Router.get(
     })
 );
 
+Router.patch(
+    "/payments/raters/:userId/payment-details/review",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const { userId } = req.params;
+        const { decision, note = "" } = req.body;
+        if (!["approved", "rejected"].includes(decision)) {
+            return res.status(400).json({ status: "fail", message: "Choose approved or rejected" });
+        }
+        if (typeof note !== "string" || note.length > 500) {
+            return res.status(400).json({ status: "fail", message: "Review note must be 500 characters or fewer" });
+        }
+
+        const reviewedAt = new Date();
+        const rater = await User.findOneAndUpdate(
+            { _id: userId, "paymentDetails.method": "manual" },
+            {
+                $set: {
+                    "paymentDetails.verificationStatus": decision,
+                    "paymentDetails.isVerified": decision === "approved",
+                    "paymentDetails.verificationNote": note.trim() || null,
+                    "paymentDetails.verifiedAt": decision === "approved" ? reviewedAt : null,
+                    "paymentDetails.reviewedBy": req.user._id,
+                    "paymentDetails.reviewedAt": reviewedAt,
+                },
+            },
+            { new: true }
+        ).select("userName email paymentDetails totalEarned totalPaid paymentStatus lastPaymentDate");
+
+        if (!rater) {
+            return res.status(404).json({ status: "fail", message: "Manual payment details not found" });
+        }
+
+        res.status(200).json({
+            status: "success",
+            message: decision === "approved" ? "Manual payment details approved" : "Manual payment details rejected",
+            data: rater,
+        });
+    })
+);
+
 Router.post(
     "/payments/raters/:userId/payout",
     auth,
@@ -543,6 +601,14 @@ Router.post(
         }
 
         const paymentDetails = rater.paymentDetails;
+        if (paymentDetails?.method === "manual") {
+            return res.status(400).json({
+                status: "fail",
+                message: paymentDetails.verificationStatus === "approved"
+                    ? "These manually submitted details are approved for review but cannot be paid through automatic Paystack transfers"
+                    : "Manually submitted payment details must be approved by an administrator before payout",
+            });
+        }
         if (!paymentDetails?.accountNumber || !paymentDetails?.bankName || !paymentDetails?.bankCode || !paymentDetails?.isVerified) {
             return res.status(400).json({
                 status: "fail",

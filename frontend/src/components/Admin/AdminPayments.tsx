@@ -125,6 +125,23 @@ export const AdminPayments: React.FC = () => {
         }
     };
 
+    const handleReviewManualDetails = async (decision: 'approved' | 'rejected') => {
+        if (!selectedRater) return;
+        const promptedNote = decision === 'rejected'
+            ? window.prompt('Optional reason for rejecting these payment details:')
+            : '';
+        if (promptedNote === null) return;
+        const note = promptedNote;
+        try {
+            const response = await adminService.reviewManualPaymentDetails(selectedRater._id, decision, note);
+            setSelectedRater(response.data);
+            await fetchRaters();
+        } catch (err) {
+            console.error('Failed to review manual payment details:', err);
+            alert(err instanceof Error ? err.message : 'Unable to review payment details');
+        }
+    };
+
     if (!isAdmin) return null;
 
     return (
@@ -257,6 +274,11 @@ export const AdminPayments: React.FC = () => {
                                                     {STATUS_ICONS[rater.paymentStatus] || STATUS_ICONS.pending}
                                                     {rater.paymentStatus || 'pending'}
                                                 </div>
+                                                {rater.paymentDetails?.method === 'manual' && (
+                                                    <div className="mt-1 text-xs text-amber-300">
+                                                        Details {rater.paymentDetails.verificationStatus?.replace('_', ' ') || 'pending review'}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="py-3 px-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
@@ -322,6 +344,7 @@ export const AdminPayments: React.FC = () => {
                 <PaymentDetailsModal
                     rater={selectedRater}
                     onClose={() => setShowDetailsModal(false)}
+                    onReviewManualDetails={handleReviewManualDetails}
                     onApprovePayment={() => {
                         if (selectedRater._id) {
                             handleApprovePayment(selectedRater);
@@ -338,7 +361,8 @@ const PaymentDetailsModal: React.FC<{
     rater: RaterPayment;
     onClose: () => void;
     onApprovePayment: () => void;
-}> = ({ rater, onClose, onApprovePayment }) => {
+    onReviewManualDetails: (decision: 'approved' | 'rejected') => void;
+}> = ({ rater, onClose, onApprovePayment, onReviewManualDetails }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <motion.div
@@ -349,23 +373,38 @@ const PaymentDetailsModal: React.FC<{
             >
                 <h3 className="text-lg font-semibold text-white mb-4">Rater Payment Details</h3>
 
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                    <GlassCard className="p-4">
+                        <label className="text-xs text-slate-400 uppercase">Payment method</label>
+                        <div className="text-white mt-1">{rater.paymentDetails?.paymentProvider || (rater.paymentDetails?.method === 'manual' ? 'Other payment method' : 'Paystack')}</div>
+                    </GlassCard>
                     <GlassCard className="p-4">
                         <label className="text-xs text-slate-400 uppercase">Bank Name</label>
                         <div className="text-white mt-1">{rater.paymentDetails?.bankName || 'Not set'}</div>
+                    </GlassCard>
+                    <GlassCard className="p-4">
+                        <label className="text-xs text-slate-400 uppercase">Account holder</label>
+                        <div className="text-white mt-1">{rater.paymentDetails?.accountName || 'Not set'}</div>
                     </GlassCard>
                     <GlassCard className="p-4">
                         <label className="text-xs text-slate-400 uppercase">Account Number</label>
                         <div className="text-white mt-1">{rater.paymentDetails?.accountNumber || 'Not set'}</div>
                     </GlassCard>
                     <GlassCard className="p-4">
-                        <label className="text-xs text-slate-400 uppercase">Account Name</label>
-                        <div className="text-white mt-1">{rater.paymentDetails?.accountName || 'Not set'}</div>
-                    </GlassCard>
-                    <GlassCard className="p-4">
                         <label className="text-xs text-slate-400 uppercase">Currency</label>
                         <div className="text-white mt-1">{rater.paymentDetails?.currency || 'N/A'}</div>
                     </GlassCard>
+                    {rater.paymentDetails?.country && <GlassCard className="p-4"><label className="text-xs text-slate-400 uppercase">Country</label><div className="text-white mt-1">{rater.paymentDetails.country}</div></GlassCard>}
+                    {rater.paymentDetails?.routingNumber && <GlassCard className="p-4"><label className="text-xs text-slate-400 uppercase">Routing number</label><div className="text-white mt-1">{rater.paymentDetails.routingNumber}</div></GlassCard>}
+                    {rater.paymentDetails?.iban && <GlassCard className="p-4"><label className="text-xs text-slate-400 uppercase">IBAN</label><div className="text-white mt-1">{rater.paymentDetails.iban}</div></GlassCard>}
+                    {rater.paymentDetails?.swiftCode && <GlassCard className="p-4"><label className="text-xs text-slate-400 uppercase">SWIFT / BIC</label><div className="text-white mt-1">{rater.paymentDetails.swiftCode}</div></GlassCard>}
+                    {rater.paymentDetails?.method === 'manual' && (
+                        <GlassCard className="p-4 sm:col-span-2">
+                            <label className="text-xs text-slate-400 uppercase">Details review</label>
+                            <div className="text-white mt-1">{rater.paymentDetails.verificationStatus?.replace('_', ' ') || 'pending review'}</div>
+                            {rater.paymentDetails.verificationNote && <div className="mt-1 text-sm text-slate-400">{rater.paymentDetails.verificationNote}</div>}
+                        </GlassCard>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-4 mb-6">
@@ -395,12 +434,22 @@ const PaymentDetailsModal: React.FC<{
                     {rater.paymentStatus !== 'paid' && (
                         <button
                             onClick={onApprovePayment}
-                            disabled={rater.paymentStatus !== 'processing' && (!rater.paymentDetails?.isVerified || !rater.paymentDetails?.bankCode || rater.totalEarned <= rater.totalPaid)}
+                            disabled={rater.paymentDetails?.method === 'manual' || (rater.paymentStatus !== 'processing' && (!rater.paymentDetails?.isVerified || !rater.paymentDetails?.bankCode || rater.totalEarned <= rater.totalPaid))}
                             className="px-4 py-2 bg-green-500/20 text-green-400 rounded-xl hover:bg-green-500/30 transition-all flex items-center gap-2 disabled:opacity-50"
                         >
                             <Banknote size={16} />
                             {rater.pendingPayoutReference ? 'Verify transfer' : 'Approve payment'}
                         </button>
+                    )}
+                    {rater.paymentDetails?.method === 'manual' && rater.paymentDetails.verificationStatus === 'pending_review' && (
+                        <>
+                            <button onClick={() => onReviewManualDetails('rejected')} className="px-4 py-2 bg-red-500/20 text-red-300 rounded-xl hover:bg-red-500/30 transition-all">
+                                Reject details
+                            </button>
+                            <button onClick={() => onReviewManualDetails('approved')} className="px-4 py-2 bg-cyan-500/20 text-cyan-200 rounded-xl hover:bg-cyan-500/30 transition-all">
+                                Approve details
+                            </button>
+                        </>
                     )}
                 </div>
             </motion.div>
