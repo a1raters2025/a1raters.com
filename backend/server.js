@@ -13,6 +13,7 @@ import invoiceRouter from "./routes/invoiceRoutes.js"
 import testHistoryRouter from "./routes/testHistoryRoutes.js"
 import clientRouter from "./routes/clientRoutes.js"
 import adminRouter from "./routes/adminRoutes.js"
+import trainingVideoRouter from "./routes/trainingVideoRoutes.js"
 import activityLogger from "./middlewares/activityLogger.js"
 import connect from "./utils/db.js"
 import cors from "cors"
@@ -128,6 +129,7 @@ app.use("/api/v1/invoices", invoiceRouter)
 app.use("/api/v1/test-history", testHistoryRouter)
 app.use("/api/v1/client", clientRouter)
 app.use("/api/v1/admin", adminRouter)
+app.use("/api/v1/admin/videos", trainingVideoRouter)
 app.use("/api/v1/files", uploadRoutes);
 
 app.use((req, res) => {

@@ -211,6 +211,18 @@ export interface PaymentAccountResolveResponse {
   };
 }
 
+export interface PaymentDetailsSaveResponse {
+  status: string;
+  message: string;
+  data: {
+    paymentDetails: PaymentDetails;
+    totalEarned: number;
+    totalPaid: number;
+    paymentStatus: RaterPayment['paymentStatus'];
+    lastPaymentDate: string | null;
+  };
+}
+
 export const adminService = {
   async getActivityLog(filters?: ActivityFilter): Promise<ActivityLogResponse> {
     const params = new URLSearchParams();
@@ -300,8 +312,8 @@ export const adminService = {
     return apiClient.post<PaymentAccountResolveResponse>('/user/resolve-payment-account', { accountNumber, bankCode });
   },
 
-  async updatePaymentDetails(updates: Partial<PaymentDetails>): Promise<{ status: string; message: string; data: User }> {
-    return apiClient.patch<{ status: string; message: string; data: User }>('/user/payment-details', updates);
+  async updatePaymentDetails(updates: Partial<PaymentDetails>): Promise<PaymentDetailsSaveResponse> {
+    return apiClient.patch<PaymentDetailsSaveResponse>('/user/payment-details', updates);
   },
 
   async getPaymentDetails(): Promise<{ status: string; data: User }> {

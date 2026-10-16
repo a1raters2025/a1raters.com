@@ -22,10 +22,10 @@ interface AdminSettings {
   requireEmailVerification: boolean;
   defaultRole: 'user' | 'client';
   maintenanceMode: boolean;
-  maxFileSize: number;
-  sessionTimeout: number;
+  maxFileSize: number | '';
+  sessionTimeout: number | '';
   smtpHost: string;
-  smtpPort: number;
+  smtpPort: number | '';
   smtpUser: string;
   smtpPassword: string;
   fromEmail: string;
@@ -69,6 +69,17 @@ export const AdminSettings: React.FC = () => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
+  const handleNumberChange = (key: 'maxFileSize' | 'sessionTimeout' | 'smtpPort', value: string) => {
+    if (value === '') {
+      setSettings(prev => ({ ...prev, [key]: '' }));
+      return;
+    }
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      setSettings(prev => ({ ...prev, [key]: parsed }));
+    }
+  };
+
   const fetchSettings = async () => {
     setLoading(true);
     try {
@@ -103,10 +114,21 @@ export const AdminSettings: React.FC = () => {
   }, []);
 
   const handleSave = async () => {
+    if (![settings.maxFileSize, settings.sessionTimeout, settings.smtpPort].every(
+      value => value !== '' && Number.isFinite(value),
+    )) {
+      setMessage('Enter valid numbers for file size, session timeout, and SMTP port.');
+      return;
+    }
     setSaving(true);
     setMessage('');
     try {
-      const response = await apiClient.post<{ status: string; message?: string }>('/admin/settings', settings);
+      const response = await apiClient.post<{ status: string; message?: string }>('/admin/settings', {
+        ...settings,
+        maxFileSize: Number(settings.maxFileSize),
+        sessionTimeout: Number(settings.sessionTimeout),
+        smtpPort: Number(settings.smtpPort),
+      });
       if (response.status === 'success') {
         setMessage('Settings saved successfully!');
         setTimeout(() => setMessage(''), 3000);
@@ -238,7 +260,7 @@ export const AdminSettings: React.FC = () => {
               min="1"
               max="100"
               value={settings.maxFileSize}
-              onChange={(e) => handleChange('maxFileSize', parseInt(e.target.value))}
+              onChange={(e) => handleNumberChange('maxFileSize', e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
             />
           </div>
@@ -249,7 +271,7 @@ export const AdminSettings: React.FC = () => {
               min="1"
               max="168"
               value={settings.sessionTimeout}
-              onChange={(e) => handleChange('sessionTimeout', parseInt(e.target.value))}
+              onChange={(e) => handleNumberChange('sessionTimeout', e.target.value)}
               className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
             />
           </div>
@@ -299,7 +321,7 @@ export const AdminSettings: React.FC = () => {
             <input
               type="number"
               value={settings.smtpPort}
-              onChange={(e) => handleChange('smtpPort', parseInt(e.target.value))}
+              onChange={(e) => handleNumberChange('smtpPort', e.target.value)}
               disabled
               className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all text-sm outline-none"
             />

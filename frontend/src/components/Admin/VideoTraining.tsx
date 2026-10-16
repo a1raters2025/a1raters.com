@@ -67,8 +67,8 @@ export const VideoTraining: React.FC = () => {
       } else {
         setVideos([]);
       }
-    } catch {
-      setVideos([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load training videos');
     } finally {
       setLoading(false);
     }
@@ -158,12 +158,13 @@ export const VideoTraining: React.FC = () => {
       if (modalMode === 'create') {
         const response = await apiClient.post<{ status: string; data: VideoTraining }>('/admin/videos', payload);
         if (response.status === 'success') {
-          fetchVideos();
+          await fetchVideos();
         }
       } else if (modalMode === 'edit' && selectedVideo) {
-        const response = await apiClient.patch<{ status: string; data: VideoTraining }>(`/admin/videos/${selectedVideo.id}`, payload);
+        const videoId = selectedVideo._id || selectedVideo.id;
+        const response = await apiClient.patch<{ status: string; data: VideoTraining }>(`/admin/videos/${videoId}`, payload);
         if (response.status === 'success') {
-          fetchVideos();
+          await fetchVideos();
         }
       }
       setShowModal(false);
@@ -177,8 +178,8 @@ export const VideoTraining: React.FC = () => {
   const handleDelete = async (video: VideoTraining) => {
     if (!confirm(`Delete video "${video.title}"? This action cannot be undone.`)) return;
     try {
-      await apiClient.delete(`/admin/videos/${video.id}`);
-      fetchVideos();
+      await apiClient.delete(`/admin/videos/${video._id || video.id}`);
+      await fetchVideos();
     } catch {
       alert('Failed to delete video');
     }

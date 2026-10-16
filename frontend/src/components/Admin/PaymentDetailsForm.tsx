@@ -22,11 +22,14 @@ export const PaymentDetailsForm: React.FC = () => {
     });
 
     const fetchPaymentDetails = async () => {
-        try {
-            const [detailsResponse, banksResponse] = await Promise.all([
+        const [detailsResult, banksResult] = await Promise.allSettled([
                 adminService.getPaymentDetails(),
                 adminService.getPaymentBanks(),
-            ]);
+        ]);
+        const loadErrors: string[] = [];
+
+        if (detailsResult.status === 'fulfilled') {
+            const detailsResponse = detailsResult.value;
             if (detailsResponse.status === 'success' && detailsResponse.data?.paymentDetails) {
                 const pd = detailsResponse.data.paymentDetails;
                 setPaymentDetails({
@@ -38,12 +41,18 @@ export const PaymentDetailsForm: React.FC = () => {
                 });
                 setAccountVerified(Boolean(pd.isVerified && pd.bankCode));
             }
-            setBanks(banksResponse.data);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Unable to load bank information from Paystack');
-        } finally {
-            setLoading(false);
+        } else {
+            loadErrors.push(detailsResult.reason instanceof Error ? detailsResult.reason.message : 'Unable to load saved payment details');
         }
+
+        if (banksResult.status === 'fulfilled') {
+            setBanks(banksResult.value.data);
+        } else {
+            loadErrors.push(banksResult.reason instanceof Error ? banksResult.reason.message : 'Unable to load bank information from Paystack');
+        }
+
+        setError(loadErrors.join('. '));
+        setLoading(false);
     };
 
     useEffect(() => {
@@ -64,6 +73,15 @@ export const PaymentDetailsForm: React.FC = () => {
         try {
             const response = await adminService.updatePaymentDetails(paymentDetails);
             if (response.status === 'success') {
+                const savedDetails = response.data.paymentDetails;
+                setPaymentDetails({
+                    bankName: savedDetails.bankName || '',
+                    bankCode: savedDetails.bankCode || '',
+                    accountNumber: savedDetails.accountNumber || '',
+                    accountName: savedDetails.accountName || '',
+                    currency: savedDetails.currency || 'NGN',
+                });
+                setAccountVerified(Boolean(savedDetails.isVerified && savedDetails.bankCode));
                 setSuccess('Payment details updated successfully');
             } else {
                 setError(response.message || 'Failed to update payment details');

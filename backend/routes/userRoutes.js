@@ -77,10 +77,6 @@ Router.route('/logout')
 Router.route('/verify-email/:token')
     .get(verifyEmail)
 
-Router.route('/:email')
-    .patch(auth, admin, updateUser)
-    .delete(auth, admin, deleteUser)
-
 Router.route('/refresh-token')
 .post(refreshTokenRoute)
 
@@ -132,6 +128,7 @@ Router.route('/payment-details')
             }
             res.status(200).json({ status: 'success', data: user });
         } catch (err) {
+            console.error('Failed to load payment details:', err);
             res.status(500).json({ status: 'fail', message: 'Internal server error' });
         }
     })
@@ -151,10 +148,17 @@ Router.route('/payment-details')
                 return res.status(400).json({ status: 'fail', message: 'Enter a valid 10-digit account number and select a bank' });
             }
 
-            const [bankResponse, accountResponse] = await Promise.all([
-                listBanks('NGN'),
-                resolveAccountNumber(accountNumber, bankCode),
-            ]);
+            let bankResponse;
+            let accountResponse;
+            try {
+                [bankResponse, accountResponse] = await Promise.all([
+                    listBanks('NGN'),
+                    resolveAccountNumber(accountNumber, bankCode),
+                ]);
+            } catch (err) {
+                console.error('Paystack payment details verification error:', err);
+                return res.status(502).json({ status: 'fail', message: 'Unable to verify this bank account with Paystack' });
+            }
             const bank = (bankResponse.data || []).find((item) => item.code === bankCode && item.active && item.currency === 'NGN');
             if (!bank || !accountResponse.status || !accountResponse.data?.account_name) {
                 return res.status(422).json({ status: 'fail', message: 'Paystack could not verify the selected bank account' });
@@ -171,7 +175,12 @@ Router.route('/payment-details')
                 recipientCode: null,
             };
 
-            await user.save();
+            try {
+                await user.save();
+            } catch (err) {
+                console.error('Failed to save verified payment details:', err);
+                return res.status(500).json({ status: 'fail', message: 'Unable to save verified bank details' });
+            }
 
             res.status(200).json({
                 status: 'success',
@@ -186,10 +195,13 @@ Router.route('/payment-details')
             });
         } catch (err) {
             console.error('Failed to save verified bank details:', err);
-            res.status(502).json({ status: 'fail', message: 'Unable to verify and save bank details with Paystack' });
+            res.status(500).json({ status: 'fail', message: 'Unable to save verified bank details' });
         }
     })
 
+Router.route('/:email')
+    .patch(auth, admin, updateUser)
+    .delete(auth, admin, deleteUser)
 
 Router.route('/users/limit')
 .get(auth, admin, getLimitedUser)
