@@ -83,6 +83,7 @@ export const Sidebar: React.FC = () => {
            { label: 'Import Data', to: '/import-data', icon: FileDown, section: 'Admin', adminOnly: true },
            { label: 'System Settings', to: '/admin/settings', icon: Shield, section: 'Admin', adminOnly: true },
            { label: 'Payments', to: '/admin/payments', icon: DollarSign, section: 'Admin', adminOnly: true },
+            { label: 'Payment Details Approvals', to: '/admin/payment-approvals', icon: Shield, section: 'Admin', adminOnly: true },
         ]
       : []),
     { label: 'Settings', to: '/settings', icon: Settings, section: 'Account' },

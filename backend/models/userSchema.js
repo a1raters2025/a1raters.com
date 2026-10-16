@@ -120,8 +120,9 @@ let userSchema = new mongoose.Schema({
     },
 
     paymentDetails: {
-        method: { type: String, enum: ['paystack', 'manual'], default: 'paystack' },
+        method: { type: String, enum: ['paystack', 'manual', 'paypal'], default: 'paystack' },
         paymentProvider: { type: String, trim: true, maxlength: 100, default: null },
+        paypalEmail: { type: String, trim: true, lowercase: true, default: null },
         bankName: { type: String, default: null },
         accountNumber: { type: String, default: null },
         accountName: { type: String, default: null },

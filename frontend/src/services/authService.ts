@@ -23,8 +23,9 @@ export interface User {
     loginCount?: number;
     createdAt?: string;
     paymentDetails?: {
-        method?: 'paystack' | 'manual';
+        method?: 'paystack' | 'manual' | 'paypal';
         paymentProvider?: string | null;
+        paypalEmail?: string | null;
         bankName?: string | null;
         bankCode?: string | null;
         accountNumber?: string | null;

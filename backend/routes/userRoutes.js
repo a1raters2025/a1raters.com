@@ -151,9 +151,10 @@ Router.route('/payment-details')
                 return res.status(409).json({ status: 'fail', message: 'Bank details cannot be changed while a payout is processing' });
             }
 
-            if (method === 'manual') {
+            if (method === 'manual' || method === 'paypal') {
                 const {
                     paymentProvider,
+                    paypalEmail,
                     bankName,
                     accountNumber,
                     accountName,
@@ -165,6 +166,7 @@ Router.route('/payment-details')
                 } = req.body;
                 const cleaned = {
                     paymentProvider: typeof paymentProvider === 'string' ? paymentProvider.trim().slice(0, 100) : '',
+                    paypalEmail: typeof paypalEmail === 'string' ? paypalEmail.trim().toLowerCase().slice(0, 254) : '',
                     bankName: typeof bankName === 'string' ? bankName.trim().slice(0, 100) : '',
                     accountNumber: typeof accountNumber === 'string' ? accountNumber.trim().slice(0, 100) : '',
                     accountName: typeof accountName === 'string' ? accountName.trim().slice(0, 160) : '',
@@ -175,20 +177,31 @@ Router.route('/payment-details')
                     currency: typeof currency === 'string' ? currency.trim().toUpperCase() : '',
                 };
 
-                if (!cleaned.paymentProvider || !cleaned.accountName || !cleaned.accountNumber || !cleaned.country || !/^[A-Z]{3}$/.test(cleaned.currency)) {
+                const invalidPaypalEmail = method === 'paypal' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned.paypalEmail);
+                if (
+                    (!cleaned.paymentProvider && method === 'manual') ||
+                    (!cleaned.accountName && method === 'manual') ||
+                    (!cleaned.accountNumber && method === 'manual') ||
+                    !cleaned.country ||
+                    !/^[A-Z]{3}$/.test(cleaned.currency) ||
+                    invalidPaypalEmail
+                ) {
                     return res.status(400).json({
                         status: 'fail',
-                        message: 'Payment method, account holder, account number, country, and a 3-letter currency code are required',
+                        message: method === 'paypal'
+                            ? 'Enter a valid PayPal email address, country, and 3-letter currency code'
+                            : 'Payment method, account holder, account number, country, and a 3-letter currency code are required',
                     });
                 }
 
                 user.paymentDetails = {
-                    method: 'manual',
-                    paymentProvider: cleaned.paymentProvider,
+                    method,
+                    paymentProvider: method === 'paypal' ? 'PayPal' : cleaned.paymentProvider,
+                    paypalEmail: method === 'paypal' ? cleaned.paypalEmail : null,
                     bankName: cleaned.bankName || null,
                     bankCode: null,
-                    accountNumber: cleaned.accountNumber,
-                    accountName: cleaned.accountName,
+                    accountNumber: method === 'manual' ? cleaned.accountNumber : null,
+                    accountName: cleaned.accountName || null,
                     routingNumber: cleaned.routingNumber || null,
                     iban: cleaned.iban || null,
                     swiftCode: cleaned.swiftCode || null,
@@ -255,6 +268,7 @@ Router.route('/payment-details')
             user.paymentDetails = {
                 method: 'paystack',
                 paymentProvider: 'Paystack',
+                paypalEmail: null,
                 bankName: bank.name,
                 bankCode: bank.code,
                 accountNumber: accountResponse.data.account_number || accountNumber,

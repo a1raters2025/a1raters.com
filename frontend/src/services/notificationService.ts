@@ -32,6 +32,9 @@ export const notificationService = {
     socket.on('payment-details:changed', () => {
       paymentDetailsListeners.forEach(listener => listener());
     });
+    socket.on('connect', () => {
+      paymentDetailsListeners.forEach(listener => listener());
+    });
   },
   getAll: read,
   subscribe(listener: (items: AppNotification[]) => void) { listeners.push(listener); return () => { listeners = listeners.filter(current => current !== listener); }; },

@@ -67,8 +67,9 @@ export interface ActivityFilter {
 }
 
 export interface PaymentDetails {
-  method?: 'paystack' | 'manual';
+  method?: 'paystack' | 'manual' | 'paypal';
   paymentProvider?: string | null;
+  paypalEmail?: string | null;
   bankName: string | null;
   bankCode?: string | null;
   accountNumber: string | null;
@@ -285,6 +286,10 @@ export const adminService = {
 
   async getRaterPaymentDetails(userId: string): Promise<{ status: string; data: RaterPayment }> {
     return apiClient.get<{ status: string; data: RaterPayment }>(`/admin/payments/raters/${userId}`);
+  },
+
+  async getPaymentDetailsApprovals(page = 1, limit = 100): Promise<PaymentsResponse> {
+    return apiClient.get<PaymentsResponse>(`/admin/payment-details/approvals?page=${page}&limit=${limit}`);
   },
 
   async reviewManualPaymentDetails(userId: string, decision: 'approved' | 'rejected', note = ''): Promise<{ status: string; message: string; data: RaterPayment }> {

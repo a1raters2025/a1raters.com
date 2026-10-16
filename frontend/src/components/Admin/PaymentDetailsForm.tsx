@@ -12,6 +12,7 @@ type PaymentFormValues = {
     accountName: string;
     currency: string;
     paymentProvider: string;
+    paypalEmail: string;
     routingNumber: string;
     iban: string;
     swiftCode: string;
@@ -25,7 +26,7 @@ export const PaymentDetailsForm: React.FC = () => {
     const [saving, setSaving] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [banks, setBanks] = useState<PaymentBank[]>([]);
-    const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'manual'>('paystack');
+    const [paymentMethod, setPaymentMethod] = useState<'paystack' | 'manual' | 'paypal'>('paystack');
     const [accountVerified, setAccountVerified] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -36,6 +37,7 @@ export const PaymentDetailsForm: React.FC = () => {
         accountName: '',
         currency: 'NGN',
         paymentProvider: '',
+        paypalEmail: '',
         routingNumber: '',
         iban: '',
         swiftCode: '',
@@ -55,7 +57,7 @@ export const PaymentDetailsForm: React.FC = () => {
             const detailsResponse = detailsResult.value;
             if (detailsResponse.status === 'success' && detailsResponse.data?.paymentDetails) {
                 const pd = detailsResponse.data.paymentDetails;
-                setPaymentMethod(pd.method === 'manual' ? 'manual' : 'paystack');
+                setPaymentMethod(pd.method === 'manual' || pd.method === 'paypal' ? pd.method : 'paystack');
                 setPaymentDetails({
                     bankName: pd.bankName || '',
                     bankCode: pd.bankCode || '',
@@ -63,6 +65,7 @@ export const PaymentDetailsForm: React.FC = () => {
                     accountName: pd.accountName || '',
                     currency: pd.currency || 'NGN',
                     paymentProvider: pd.paymentProvider || '',
+                    paypalEmail: pd.paypalEmail || '',
                     routingNumber: pd.routingNumber || '',
                     iban: pd.iban || '',
                     swiftCode: pd.swiftCode || '',
@@ -110,6 +113,7 @@ export const PaymentDetailsForm: React.FC = () => {
                 accountName: paymentDetails.accountName,
                 currency: paymentDetails.currency,
                 paymentProvider: paymentDetails.paymentProvider,
+                paypalEmail: paymentDetails.paypalEmail,
                 routingNumber: paymentDetails.routingNumber,
                 iban: paymentDetails.iban,
                 swiftCode: paymentDetails.swiftCode,
@@ -117,7 +121,7 @@ export const PaymentDetailsForm: React.FC = () => {
             });
             if (response.status === 'success') {
                 const savedDetails = response.data.paymentDetails;
-                setPaymentMethod(savedDetails.method === 'manual' ? 'manual' : 'paystack');
+                setPaymentMethod(savedDetails.method === 'manual' || savedDetails.method === 'paypal' ? savedDetails.method : 'paystack');
                 setPaymentDetails({
                     bankName: savedDetails.bankName || '',
                     bankCode: savedDetails.bankCode || '',
@@ -125,6 +129,7 @@ export const PaymentDetailsForm: React.FC = () => {
                     accountName: savedDetails.accountName || '',
                     currency: savedDetails.currency || 'NGN',
                     paymentProvider: savedDetails.paymentProvider || '',
+                    paypalEmail: savedDetails.paypalEmail || '',
                     routingNumber: savedDetails.routingNumber || '',
                     iban: savedDetails.iban || '',
                     swiftCode: savedDetails.swiftCode || '',
@@ -133,7 +138,7 @@ export const PaymentDetailsForm: React.FC = () => {
                     verificationNote: savedDetails.verificationNote || '',
                 });
                 setAccountVerified(Boolean(savedDetails.isVerified && savedDetails.method !== 'manual' && savedDetails.bankCode));
-                setSuccess(paymentMethod === 'manual'
+                setSuccess(paymentMethod !== 'paystack'
                     ? 'Payment details submitted for administrator review.'
                     : 'Payment details updated successfully');
             } else {
@@ -179,7 +184,7 @@ export const PaymentDetailsForm: React.FC = () => {
         setSuccess('');
     };
 
-    const handleMethodChange = (method: 'paystack' | 'manual') => {
+    const handleMethodChange = (method: 'paystack' | 'manual' | 'paypal') => {
         setPaymentMethod(method);
         setAccountVerified(false);
         setError('');
@@ -256,6 +261,14 @@ export const PaymentDetailsForm: React.FC = () => {
                                 >
                                     <span className="block font-semibold">Other payment details</span>
                                     <span className="mt-1 block text-xs text-slate-400">Submit an account for administrator review</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleMethodChange('paypal')}
+                                    className={`rounded-xl border p-4 text-left transition ${paymentMethod === 'paypal' ? 'border-cyan-400 bg-cyan-400/10 text-white' : 'border-white/10 bg-white/5 text-slate-300'}`}
+                                >
+                                    <span className="block font-semibold">PayPal</span>
+                                    <span className="mt-1 block text-xs text-slate-400">Submit a PayPal email for administrator review</span>
                                 </button>
                             </div>
                         </div>
@@ -344,7 +357,7 @@ export const PaymentDetailsForm: React.FC = () => {
                             </div>
                         </div>
                         </>
-                        ) : (
+                        ) : paymentMethod === 'manual' ? (
                             <>
                                 <div className="rounded-lg border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100">
                                     These details will be saved as unverified and sent to an administrator for review. They cannot receive automatic Paystack transfers.
@@ -384,6 +397,36 @@ export const PaymentDetailsForm: React.FC = () => {
                                     <label className="text-xs font-bold text-slate-300 uppercase">
                                         SWIFT / BIC
                                         <input maxLength={50} value={paymentDetails.swiftCode} onChange={(e) => setPaymentDetails((current) => ({ ...current, swiftCode: e.target.value }))} className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        Country
+                                        <input required maxLength={100} value={paymentDetails.country} onChange={(e) => setPaymentDetails((current) => ({ ...current, country: e.target.value }))} className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        Currency (3-letter code)
+                                        <input required minLength={3} maxLength={3} pattern="[A-Za-z]{3}" value={paymentDetails.currency} onChange={(e) => setPaymentDetails((current) => ({ ...current, currency: e.target.value.toUpperCase() }))} placeholder="USD" className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal uppercase text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="rounded-lg border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100">
+                                    PayPal details are saved as unverified and sent to an administrator for review. PayPal payouts are handled manually after approval.
+                                </div>
+                                {paymentDetails.verificationStatus && (
+                                    <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                                        Review status: <span className="font-semibold">{paymentDetails.verificationStatus.replace('_', ' ')}</span>
+                                        {paymentDetails.verificationNote && <p className="mt-1 text-slate-400">{paymentDetails.verificationNote}</p>}
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        PayPal email
+                                        <input required type="email" maxLength={254} autoComplete="email" value={paymentDetails.paypalEmail} onChange={(e) => setPaymentDetails((current) => ({ ...current, paypalEmail: e.target.value }))} placeholder="name@example.com" className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
+                                    </label>
+                                    <label className="text-xs font-bold text-slate-300 uppercase">
+                                        Account holder name
+                                        <input maxLength={160} value={paymentDetails.accountName} onChange={(e) => setPaymentDetails((current) => ({ ...current, accountName: e.target.value }))} className="mt-1.5 block w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-normal normal-case text-white outline-none focus:border-cyan-400" />
                                     </label>
                                     <label className="text-xs font-bold text-slate-300 uppercase">
                                         Country

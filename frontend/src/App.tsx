@@ -29,6 +29,7 @@ import { AdminActivityMonitor } from './components/Admin/AdminActivityMonitor';
 import { UserApprovalPage } from './components/Admin/UserApprovalPage';
 import { AdminPayments } from './components/Admin/AdminPayments';
 import { PaymentDetailsForm } from './components/Admin/PaymentDetailsForm';
+import { PaymentDetailsApprovals } from './components/Admin/PaymentDetailsApprovals';
 import { RaterReportReviewPage } from './components/Admin/RaterReportReviewPage';
 import { AuthProvider } from './components/Auth/AuthProvider';
 
@@ -228,6 +229,17 @@ function App() {
               <PrivateRoute>
                 <AdminRoute>
                   <Shell><AdminPayments /></Shell>
+                </AdminRoute>
+              </PrivateRoute>
+            }
+          />
+
+          <Route
+            path="/admin/payment-approvals"
+            element={
+              <PrivateRoute>
+                <AdminRoute>
+                  <Shell><PaymentDetailsApprovals /></Shell>
                 </AdminRoute>
               </PrivateRoute>
             }

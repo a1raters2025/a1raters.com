@@ -525,6 +525,50 @@ Router.get(
 );
 
 Router.get(
+    "/payment-details/approvals",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
+        const accountFilter = {
+            role: "user",
+            $or: [
+                { "paymentDetails.method": { $in: ["paystack", "manual", "paypal"] } },
+                { "paymentDetails.method": { $exists: false }, "paymentDetails.accountNumber": { $exists: true, $nin: [null, ""] } },
+            ],
+        };
+        const [users, total] = await Promise.all([
+            User.find({
+                ...accountFilter,
+            })
+                .select("userName email paymentDetails.method paymentDetails.paymentProvider paymentDetails.paypalEmail paymentDetails.bankName paymentDetails.accountName paymentDetails.accountNumber paymentDetails.bankCode paymentDetails.routingNumber paymentDetails.iban paymentDetails.swiftCode paymentDetails.country paymentDetails.currency paymentDetails.isVerified paymentDetails.verificationStatus paymentDetails.verificationNote paymentDetails.verifiedAt paymentDetails.reviewedAt totalEarned totalPaid paymentStatus createdAt updatedAt")
+                .sort({ "paymentDetails.reviewedAt": 1, updatedAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit)
+                .lean(),
+            User.countDocuments(accountFilter),
+        ]);
+
+        const data = users.map((user) => ({
+            ...user,
+            paymentDetails: {
+                ...user.paymentDetails,
+                method: user.paymentDetails?.method || (user.paymentDetails?.bankCode ? "paystack" : "manual"),
+                verificationStatus: user.paymentDetails?.verificationStatus
+                    || (user.paymentDetails?.isVerified ? "approved" : "pending_review"),
+            },
+        }));
+
+        res.status(200).json({
+            status: "success",
+            data,
+            pagination: { currentPage: page, totalPages: Math.ceil(total / limit), totalItems: total },
+        });
+    })
+);
+
+Router.get(
     "/payments/raters/:userId",
     auth,
     admin,
@@ -558,7 +602,11 @@ Router.patch(
 
         const reviewedAt = new Date();
         const rater = await User.findOneAndUpdate(
-            { _id: userId, "paymentDetails.method": "manual" },
+            {
+                _id: userId,
+                "paymentDetails.method": { $in: ["manual", "paypal"] },
+                "paymentDetails.verificationStatus": "pending_review",
+            },
             {
                 $set: {
                     "paymentDetails.verificationStatus": decision,
