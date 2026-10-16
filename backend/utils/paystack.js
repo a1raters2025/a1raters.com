@@ -1,7 +1,13 @@
 import Paystack from 'paystack';
 import crypto from 'crypto';
 
-const paystack = Paystack(process.env.PAYSTACK_SECRET_KEY);
+const getPaystackClient = () => {
+  const secretKey = process.env.PAYSTACK_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('Paystack secret key not configured');
+  }
+  return Paystack(secretKey);
+};
 
 export const initializePaystackTransfer = async ({
   amount,
@@ -10,9 +16,7 @@ export const initializePaystackTransfer = async ({
   reason,
   currency = 'NGN',
 }) => {
-  if (!process.env.PAYSTACK_SECRET_KEY) {
-    throw new Error('Paystack secret key not configured');
-  }
+  const paystack = getPaystackClient();
 
   const transferData = {
     amount: Math.round(amount * 100),
@@ -32,9 +36,7 @@ export const initializePaystackTransfer = async ({
 };
 
 export const verifyPaystackTransfer = async (reference) => {
-  if (!process.env.PAYSTACK_SECRET_KEY) {
-    throw new Error('Paystack secret key not configured');
-  }
+  const paystack = getPaystackClient();
 
   try {
     const response = await paystack.transfer.verify(reference);
@@ -52,9 +54,7 @@ export const createPaystackTransferRecipient = async ({
   currency = 'NGN',
   type = 'nuban',
 }) => {
-  if (!process.env.PAYSTACK_SECRET_KEY) {
-    throw new Error('Paystack secret key not configured');
-  }
+  const paystack = getPaystackClient();
 
   const recipientData = {
     type,
@@ -74,9 +74,7 @@ export const createPaystackTransferRecipient = async ({
 };
 
 export const listBanks = async (currency = 'NGN') => {
-  if (!process.env.PAYSTACK_SECRET_KEY) {
-    throw new Error('Paystack secret key not configured');
-  }
+  const paystack = getPaystackClient();
 
   try {
     const response = await paystack.misc.listBanks({ currency });
@@ -88,9 +86,7 @@ export const listBanks = async (currency = 'NGN') => {
 };
 
 export const resolveAccountNumber = async (accountNumber, bankCode) => {
-  if (!process.env.PAYSTACK_SECRET_KEY) {
-    throw new Error('Paystack secret key not configured');
-  }
+  const paystack = getPaystackClient();
 
   try {
     const response = await paystack.misc.resolveAccountNumber(accountNumber, bankCode);
@@ -112,5 +108,3 @@ export const verifyPaystackWebhook = (payload, signature, rawBody) => {
   const provided = Buffer.from(signature, 'hex');
   return provided.length === expected.length && crypto.timingSafeEqual(provided, expected);
 };
-
-export default paystack;

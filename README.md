@@ -124,7 +124,8 @@ CLOUDINARY_CLOUD_NAME=
 CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
 
-# Optional Paystack NGN bank transfers. Keep the secret key server-side.
+# Optional Paystack credentials. Keep the secret key server-side.
+PAYSTACK_API_KEY=
 PAYSTACK_SECRET_KEY=
 ```
 
@@ -134,7 +135,7 @@ For Google sign-in, configure `GOOGLE_CLIENT_ID` on the backend and `VITE_GOOGLE
 
 SMTP settings are required to deliver verification messages for password-based registrations. Unverified accounts cannot sign in; if email delivery fails, configure SMTP and use the resend action on the login screen. Cloudinary settings are needed for file uploads. Google sign-in verifies the email address through Google, but new Google accounts still require administrator approval.
 
-Paystack payouts use `PAYSTACK_SECRET_KEY` on the backend only. Raters select a Nigerian bank and verify their account through Paystack in Payment Details. Administrators approve the verified NGN payout from **Admin > User Approvals**; transfer status is reconciled by verification and the signed Paystack webhook at `/api/v1/admin/payments/webhook`. A successful transfer automatically creates a unique, read-only payment receipt visible to its rater and in the administrator's invoice history. Configure that URL in the Paystack dashboard, enable Transfers, and ensure the Paystack balance can fund outgoing transfers. Use a replica-set MongoDB deployment for transactions that safely settle payout records, user balances, and receipts.
+Paystack payouts use `PAYSTACK_SECRET_KEY` on the backend only; the backend bank and payout API does not use `PAYSTACK_API_KEY`. Raters select a Nigerian bank and verify their account through Paystack in Payment Details. Administrators approve the verified NGN payout from **Admin > User Approvals**; transfer status is reconciled by verification and the signed Paystack webhook at `/api/v1/admin/payments/webhook`. A successful transfer automatically creates a unique, read-only payment receipt visible to its rater and in the administrator's invoice history. Configure that URL in the Paystack dashboard, enable Transfers, and ensure the Paystack balance can fund outgoing transfers. Use a replica-set MongoDB deployment for transactions that safely settle payout records, user balances, and receipts.
 
 ### Frontend
 
