@@ -94,7 +94,7 @@ Router.route('/payment-banks')
             res.status(200).json({ status: 'success', data: banks });
         } catch (err) {
             console.error('Failed to fetch Paystack banks:', err);
-            res.status(502).json({ status: 'fail', message: 'Unable to load Nigerian banks from Paystack' });
+            res.status(502).json({ status: 'fail', message: err?.message || 'Unable to load Nigerian banks from Paystack' });
         }
     })
 
