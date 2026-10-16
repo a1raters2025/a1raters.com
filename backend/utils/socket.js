@@ -17,3 +17,7 @@ export const emitAdminUpdate = ({ title, message, type = 'info' }) => {
     createdAt: new Date().toISOString(),
   });
 };
+
+export const emitPaymentDetailsChanged = () => {
+  io?.emit('payment-details:changed');
+};

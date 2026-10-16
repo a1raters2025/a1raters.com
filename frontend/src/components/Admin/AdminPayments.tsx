@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { adminService, type RaterPayment } from '../../services/adminService';
+import { notificationService } from '../../services/notificationService';
 import { GlassCard } from '../UI/GlassCard';
 import {
     Users,
@@ -77,6 +78,19 @@ export const AdminPayments: React.FC = () => {
         const load = async () => { await fetchRaters(); };
         load();
     }, [fetchRaters]);
+
+    useEffect(() => {
+        const unsubscribe = notificationService.subscribePaymentDetailsChanged(() => {
+            void fetchRaters();
+            if (selectedRater) {
+                void adminService.getRaterPaymentDetails(selectedRater._id)
+                    .then(response => setSelectedRater(response.data))
+                    .catch(err => console.error('Failed to refresh rater payment details:', err));
+            }
+        });
+        notificationService.connect();
+        return unsubscribe;
+    }, [fetchRaters, selectedRater]);
 
     const handleApprovePayment = async (rater: RaterPayment) => {
         setProcessingPayments(prev => new Set(prev).add(rater._id));

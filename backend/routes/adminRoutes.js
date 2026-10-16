@@ -15,6 +15,7 @@ import {
   resolveAccountNumber,
   verifyPaystackWebhook,
 } from "../utils/paystack.js";
+import { emitPaymentDetailsChanged } from "../utils/socket.js";
 
 const Router = express.Router();
 
@@ -575,6 +576,7 @@ Router.patch(
             return res.status(404).json({ status: "fail", message: "Manual payment details not found" });
         }
 
+        emitPaymentDetailsChanged();
         res.status(200).json({
             status: "success",
             message: decision === "approved" ? "Manual payment details approved" : "Manual payment details rejected",

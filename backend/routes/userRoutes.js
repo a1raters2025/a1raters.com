@@ -28,6 +28,7 @@ import {
 import admin from "../middlewares/adminMiddleware.js"
 import { User } from "../models/userSchema.js"
 import { listBanks, resolveAccountNumber } from "../utils/paystack.js"
+import { emitPaymentDetailsChanged } from "../utils/socket.js";
 
 const Router = express.Router()
 
@@ -203,6 +204,7 @@ Router.route('/payment-details')
                 };
 
                 await user.save();
+                emitPaymentDetailsChanged();
                 return res.status(200).json({
                     status: 'success',
                     message: 'Payment details saved and submitted for administrator review',
@@ -269,6 +271,7 @@ Router.route('/payment-details')
 
             try {
                 await user.save();
+                emitPaymentDetailsChanged();
             } catch (err) {
                 console.error('Failed to save verified payment details:', err);
                 return res.status(500).json({ status: 'fail', message: 'Unable to save verified bank details' });

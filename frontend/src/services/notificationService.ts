@@ -14,6 +14,7 @@ const STORAGE_KEY = 'a1_raters_notifications';
 const SOCKET_URL = APP_CONFIG.apiUrl.replace(/\/api\/v1\/?$/, '');
 let socket: Socket | null = null;
 let listeners: Array<(items: AppNotification[]) => void> = [];
+let paymentDetailsListeners: Array<() => void> = [];
 
 const read = (): AppNotification[] => {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
@@ -28,9 +29,16 @@ export const notificationService = {
       const item = { ...incoming, read: false };
       publish([item, ...read()].slice(0, 100));
     });
+    socket.on('payment-details:changed', () => {
+      paymentDetailsListeners.forEach(listener => listener());
+    });
   },
   getAll: read,
   subscribe(listener: (items: AppNotification[]) => void) { listeners.push(listener); return () => { listeners = listeners.filter(current => current !== listener); }; },
+  subscribePaymentDetailsChanged(listener: () => void) {
+    paymentDetailsListeners.push(listener);
+    return () => { paymentDetailsListeners = paymentDetailsListeners.filter(current => current !== listener); };
+  },
   markAllRead() { publish(read().map(item => ({ ...item, read: true }))); },
   markRead(id: string) { publish(read().map(item => item.id === id ? { ...item, read: true } : item)); },
   disconnect() { socket?.disconnect(); socket = null; },
