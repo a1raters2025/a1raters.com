@@ -3,9 +3,9 @@ import crypto from 'crypto';
 const BASE_URL = 'https://api.paystack.co';
 
 const getSecretKey = () => {
-  const secretKey = (process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_API_KEY || '').trim();
+  const secretKey = process.env.PAYSTACK_SECRET_KEY?.trim();
   if (!secretKey) {
-    throw new Error('Paystack secret key not configured');
+    throw new Error('PAYSTACK_SECRET_KEY is not configured on the backend');
   }
   return secretKey;
 };
@@ -19,11 +19,20 @@ const paystackFetch = async (path, options = {}) => {
       ...(options.headers || {}),
     },
   });
-  const data = await response.json();
+  const responseText = await response.text();
+  let data;
+  try {
+    data = responseText ? JSON.parse(responseText) : null;
+  } catch {
+    data = null;
+  }
   if (!response.ok || data?.status === false) {
-    const err = new Error(data?.message || `Paystack request failed: ${response.status}`);
-    err.response = data;
+    const err = new Error(data?.message || `Paystack request failed with HTTP ${response.status}`);
+    err.status = response.status;
     throw err;
+  }
+  if (!data || typeof data !== 'object') {
+    throw new Error('Paystack returned an unreadable response');
   }
   return data;
 };
@@ -64,7 +73,11 @@ export const listBanks = async (currency = 'NGN') => {
 };
 
 export const resolveAccountNumber = async (accountNumber, bankCode) => {
-  return paystackFetch(`/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(bankCode)}`, { method: 'GET' });
+  const params = new URLSearchParams({
+    account_number: accountNumber,
+    bank_code: bankCode.trim(),
+  });
+  return paystackFetch(`/bank/resolve?${params}`, { method: 'GET' });
 };
 
 export const verifyPaystackWebhook = (payload, signature, rawBody) => {

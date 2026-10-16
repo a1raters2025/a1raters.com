@@ -102,7 +102,7 @@ Router.route('/resolve-payment-account')
         }
 
         try {
-            const response = await resolveAccountNumber(accountNumber, bankCode);
+            const response = await resolveAccountNumber(accountNumber, bankCode.trim());
             if (!response.status || !response.data?.account_name) {
                 return res.status(422).json({ status: 'fail', message: response.message || 'Paystack could not verify this bank account' });
             }
@@ -114,8 +114,14 @@ Router.route('/resolve-payment-account')
                 },
             });
         } catch (err) {
-            console.error('Paystack account verification error:', err);
-            res.status(502).json({ status: 'fail', message: 'Unable to verify this bank account with Paystack' });
+            console.error('Paystack account verification failed:', {
+                status: err.status,
+                message: err.message,
+            });
+            res.status(502).json({
+                status: 'fail',
+                message: `Paystack account verification failed: ${err.message}`,
+            });
         }
     })
 
@@ -153,15 +159,24 @@ Router.route('/payment-details')
             try {
                 [bankResponse, accountResponse] = await Promise.all([
                     listBanks('NGN'),
-                    resolveAccountNumber(accountNumber, bankCode),
+                    resolveAccountNumber(accountNumber, bankCode.trim()),
                 ]);
             } catch (err) {
-                console.error('Paystack payment details verification error:', err);
-                return res.status(502).json({ status: 'fail', message: 'Unable to verify this bank account with Paystack' });
+                console.error('Paystack payment details verification failed:', {
+                    status: err.status,
+                    message: err.message,
+                });
+                return res.status(502).json({
+                    status: 'fail',
+                    message: `Paystack account verification failed: ${err.message}`,
+                });
             }
-            const bank = (bankResponse.data || []).find((item) => item.code === bankCode && item.active && item.currency === 'NGN');
+            const bank = (bankResponse.data || []).find((item) => item.code === bankCode.trim() && item.active && item.currency === 'NGN');
             if (!bank || !accountResponse.status || !accountResponse.data?.account_name) {
-                return res.status(422).json({ status: 'fail', message: 'Paystack could not verify the selected bank account' });
+                return res.status(422).json({
+                    status: 'fail',
+                    message: accountResponse.message || 'Paystack could not verify the selected bank account and bank combination',
+                });
             }
 
             user.paymentDetails = {
