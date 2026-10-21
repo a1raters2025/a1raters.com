@@ -1,0 +1,188 @@
+import mongoose from "mongoose"
+import validator from "validator"
+import bcrypt from "bcrypt"
+
+// create a variable that will hold the schema
+let userSchema = new mongoose.Schema({
+    image: {
+        type: String,
+        default: "efuhwudfhowdfsd9ufsdihfdu"
+    },
+    userName: {
+        type: String,
+        required: [true, "user name field is required"],
+       
+    },
+    email: {
+        type: String,
+        required: [true, "Email field is required"],
+        trim: true,
+        unique: true,
+        validate: {
+            validator: (value) => validator.isEmail(value),
+            message: "Please enter a valid email"
+        }
+    },
+    proxy: {
+        type: String,
+        trim: true,
+    },
+    role:{
+        type: String,
+        enum: ["admin", "user", "client"],
+        default: "user"
+    },
+
+    categories: {
+        type: [String],
+        enum: ["App Store", "Mac App Store", "Video", "Video Hint", "Podcast", "Music", "AI Assist", "App Image Accessibility", "Manual Invoice", "App Store Image"],
+        default: [],
+    },
+
+    evaluation: {
+        type: String,
+        default: null,
+    },
+
+    password: {
+        type: String,
+        required: [true, "Password field is required"],
+        minLength: [6, "Password must be at least 6 characters long"],
+        validate: {
+            validator: function(value) {
+                if (!value) return false;
+                if (value.startsWith("$2")) return true;
+
+                return validator.isStrongPassword(value, {
+                    minLength: 6,
+                    minLowercase: 1,
+                    minUppercase: 1,
+                    minNumbers: 1,
+                    minSymbols: 1
+                })
+            },
+            message: "Password must contain at least 6 characters, including uppercase, lowercase, number and symbol"
+        }
+    },
+
+    createdAt: {
+        type: Date,
+        default: Date.now
+    },
+
+    isApproved: {
+        type: Boolean,
+        default: true
+    },
+    isRejected: {
+        type: Boolean,
+        default: false
+    },
+    rejectionReason: {
+        type: String,
+        default: null
+    },
+    rejectedAt: {
+        type: Date,
+        default: null
+    },
+    rejectedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null
+    },
+     isVerified: {
+        type: Boolean,
+        default: true
+    },
+    verificationToken: {
+        type: String
+    },
+    verificationTokenExpires: {
+        type: Date
+    },
+
+    lastLoginAt: {
+        type: Date,
+        default: null,
+    },
+    lastLoginIp: {
+        type: String,
+        default: null,
+    },
+    lastSeenAt: {
+        type: Date,
+        default: null,
+    },
+    loginCount: {
+        type: Number,
+        default: 0,
+    },
+
+    paymentDetails: {
+        method: { type: String, enum: ['paystack', 'manual', 'paypal'], default: 'paystack' },
+        paymentProvider: { type: String, trim: true, maxlength: 100, default: null },
+        paypalEmail: { type: String, trim: true, lowercase: true, default: null },
+        bankName: { type: String, default: null },
+        accountNumber: { type: String, default: null },
+        accountName: { type: String, default: null },
+        bankCode: { type: String, default: null },
+        routingNumber: { type: String, trim: true, maxlength: 100, default: null },
+        iban: { type: String, trim: true, maxlength: 100, default: null },
+        swiftCode: { type: String, trim: true, maxlength: 50, default: null },
+        country: { type: String, trim: true, maxlength: 100, default: null },
+        currency: { type: String, trim: true, uppercase: true, maxlength: 3, default: 'NGN' },
+        isVerified: { type: Boolean, default: false },
+        verificationStatus: { type: String, enum: ['pending_review', 'approved', 'rejected'], default: 'pending_review' },
+        verificationNote: { type: String, trim: true, maxlength: 500, default: null },
+        verifiedAt: { type: Date, default: null },
+        reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+        reviewedAt: { type: Date, default: null },
+        recipientCode: { type: String, default: null },
+    },
+
+    totalEarned: {
+        type: Number,
+        default: 0,
+    },
+    totalPaid: {
+        type: Number,
+        default: 0,
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['pending', 'processing', 'paid', 'failed'],
+        default: 'pending',
+    },
+    pendingPayoutReference: {
+        type: String,
+        default: null,
+    },
+    pendingPayoutAmount: {
+        type: Number,
+        default: null,
+    },
+    lastPaymentDate: {
+        type: Date,
+        default: null,
+    },
+
+}, 
+{
+    timestamps: true
+}
+);
+
+userSchema.pre("save", async function() {
+    if (!this.isModified("password")) return;  //do not encrypt the password if the password has not been modified
+
+    // if (this.password.startsWith("$2")) return; //do not encrypt the pawssword if the password starts with "$2"
+
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+});
+
+// create a model from the schema
+// it is a convention to use capital letters for the variable name of the model
+
+export const User = mongoose.model("User", userSchema)
