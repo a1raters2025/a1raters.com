@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { CalendarDays, RefreshCw, Receipt } from 'lucide-react';
+import { CalendarDays, Receipt } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { invoiceService, type Invoice } from '../../services/invoiceService';
 import { GlassCard } from '../UI/GlassCard';
