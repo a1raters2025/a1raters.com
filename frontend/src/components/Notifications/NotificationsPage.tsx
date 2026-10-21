@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { authService } from '../../services/authService';
 import { adminService } from '../../services/adminService';
 import { notificationService, type AppNotification } from '../../services/notificationService';
+import { formatNigeriaDateTime } from '../../utils/dateTime';
 
 export const NotificationsPage: React.FC = () => {
   const isAdmin = authService.getUser()?.role === 'admin';
@@ -116,7 +117,7 @@ export const NotificationsPage: React.FC = () => {
                   {!item.read && <span>New</span>}
                 </div>
                 <p>{item.message}</p>
-                <time>{new Date(item.createdAt).toLocaleString()}</time>
+                <time>{formatNigeriaDateTime(item.createdAt)}</time>
               </div>
             </motion.article>
           ))}

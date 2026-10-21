@@ -3,6 +3,7 @@ import { CalendarDays, Clock, FileText, RefreshCw, TrendingUp } from 'lucide-rea
 import { reportService, type RequestReport } from '../../services/reportService';
 import { authService } from '../../services/authService';
 import { GlassCard } from '../UI/GlassCard';
+import { formatNigeriaDateTime } from '../../utils/dateTime';
 
 interface ReportWeek {
   start: string;
@@ -27,10 +28,8 @@ const getWeekEnd = (start: string) => {
   return date.toISOString().slice(0, 10);
 };
 
-const reportEarnings = (report: RequestReport) => Math.max(
-  0,
-  (Number(report.hoursWorked) || 0) * (Number(report.hourlyRate) || 0) - (Number(report.latePenalty) || 0),
-);
+const reportEarnings = (report: RequestReport) =>
+  (Number(report.hoursWorked) || 0) * (Number(report.hourlyRate) || 0) - (Number(report.latePenalty) || 0);
 
 const formatNaira = (amount: number) => `₦${amount.toLocaleString('en-NG', { maximumFractionDigits: 2 })}`;
 
@@ -172,7 +171,8 @@ export const WeeklyReportsPage: React.FC = () => {
                 <table className="w-full min-w-[900px] text-left text-sm">
                   <thead className="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
                     <tr>
-                      <th className="px-4 py-3">Task date</th>
+                      <th className="px-4 py-3">Task published</th>
+                      <th className="px-4 py-3">Submitted (WAT)</th>
                       {isAdmin && <th className="px-4 py-3">Rater</th>}
                       <th className="px-4 py-3">Profile / email</th>
                       <th className="px-4 py-3">Category</th>
@@ -187,6 +187,7 @@ export const WeeklyReportsPage: React.FC = () => {
                     {weeklyReports.map((report) => (
                       <tr key={report._id || `${report.date}-${report.email}-${report.profileName}`} className="text-slate-300 hover:bg-white/5">
                         <td className="whitespace-nowrap px-4 py-3">{formatDate(report.date.slice(0, 10))}</td>
+                        <td className="whitespace-nowrap px-4 py-3">{formatNigeriaDateTime(report.submissionTime)}</td>
                         {isAdmin && <td className="px-4 py-3">{report.raterName}</td>}
                         <td className="px-4 py-3">
                           <div className="font-medium text-white">{report.profileName}</div>

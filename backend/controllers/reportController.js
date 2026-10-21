@@ -321,13 +321,13 @@ export const updateReportReviewStatus = async (req, res, next) => {
 
     if (reviewStatus === "approved" && oldReviewStatus !== "approved" && report.submittedBy) {
         const earnings = (Number(report.hoursWorked) || 0) * (Number(report.hourlyRate) || 0) - (Number(report.latePenalty) || 0);
-        if (earnings > 0) {
+        if (earnings !== 0) {
             await User.updateOne({ _id: report.submittedBy }, { $inc: { totalEarned: earnings } });
         }
     }
     if (reviewStatus === "rejected" && oldReviewStatus === "approved" && report.submittedBy) {
         const earnings = (Number(report.hoursWorked) || 0) * (Number(report.hourlyRate) || 0) - (Number(report.latePenalty) || 0);
-        if (earnings > 0) {
+        if (earnings !== 0) {
             await User.updateOne({ _id: report.submittedBy }, { $inc: { totalEarned: -earnings } });
         }
     }
@@ -504,8 +504,7 @@ export const getEarningsLeaderboard = async (req, res, next) => {
           _id: "$submittedBy",
           totalEarned: {
             $sum: {
-              $max: [0, {
-                $subtract: [
+              $subtract: [
                   {
                     $multiply: [
                       { $convert: { input: "$hoursWorked", to: "double", onError: 0, onNull: 0 } },
@@ -514,7 +513,6 @@ export const getEarningsLeaderboard = async (req, res, next) => {
                   },
                   { $convert: { input: "$latePenalty", to: "double", onError: 0, onNull: 0 } },
                 ],
-              }],
             },
           },
           totalReports: { $sum: 1 },
@@ -586,10 +584,8 @@ export const updateReport = async (req, res, next) => {
     const isAdmin = req.user.role === "admin";
     const isOwner = report.submittedBy?.toString() === req.user._id.toString();
     const wasApproved = report.reviewStatus === "approved";
-    const previousApprovedEarnings = Math.max(
-      0,
-      (Number(report.hoursWorked) || 0) * (Number(report.hourlyRate) || 0) - (Number(report.latePenalty) || 0)
-    );
+    const previousApprovedEarnings =
+      (Number(report.hoursWorked) || 0) * (Number(report.hourlyRate) || 0) - (Number(report.latePenalty) || 0);
     if (!isAdmin && (!isOwner || req.user.role !== "user")) {
       return next(new AppError("You can only edit your own reports", 403));
     }
@@ -643,7 +639,7 @@ export const updateReport = async (req, res, next) => {
     if (changes.length > 0) {
         await report.save();
 
-      if (!isAdmin && wasApproved && report.submittedBy && previousApprovedEarnings > 0) {
+      if (!isAdmin && wasApproved && report.submittedBy && previousApprovedEarnings !== 0) {
         await User.updateOne({ _id: report.submittedBy }, { $inc: { totalEarned: -previousApprovedEarnings } });
       }
 

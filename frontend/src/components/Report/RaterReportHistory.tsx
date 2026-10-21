@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { authService } from '../../services/authService';
 import { reportService, type RequestReport } from '../../services/reportService';
 import { GlassCard } from '../UI/GlassCard';
+import { formatNigeriaDate, formatNigeriaDateTime } from '../../utils/dateTime';
 import {
   Home,
   Trash2,
@@ -170,7 +171,7 @@ export const RaterReportHistory: React.FC = () => {
     const isLate = Boolean(selectedReport?.latePenalty);
     return (
       <span className={`flex items-center gap-1 ${isLate ? 'text-red-500' : 'text-gray-600'}`}>
-        {d.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+        {formatNigeriaDateTime(d)}
         {isLate && <AlertTriangle className="w-4 h-4" />}
       </span>
     );
@@ -264,9 +265,9 @@ export const RaterReportHistory: React.FC = () => {
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-xs text-gray-400">Report Date</dt>
+                    <dt className="text-xs text-gray-400">Task published</dt>
                     <dd className="font-semibold text-gray-900">
-                      {selectedReport.date ? new Date(selectedReport.date).toLocaleDateString() : 'N/A'}
+                      {formatNigeriaDate(selectedReport.date)}
                     </dd>
                   </div>
                   <div>
@@ -418,7 +419,7 @@ export const RaterReportHistory: React.FC = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task published</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profile</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
@@ -437,7 +438,7 @@ export const RaterReportHistory: React.FC = () => {
                     <React.Fragment key={report._id || report.id}>
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {report.date ? new Date(report.date).toLocaleDateString() : 'N/A'}
+                        {formatNigeriaDate(report.date)}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {report.profileName}
@@ -458,7 +459,7 @@ export const RaterReportHistory: React.FC = () => {
                         {report.submissionTime ? (
                           <div className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {new Date(report.submissionTime).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                            {formatNigeriaDateTime(report.submissionTime)}
                             {isLate && <AlertTriangle className="w-3 h-3 text-red-500" />}
                           </div>
                         ) : 'N/A'}
@@ -509,7 +510,7 @@ export const RaterReportHistory: React.FC = () => {
                       <tr>
                         <td colSpan={9} className="bg-indigo-50 px-4 py-4">
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            <label className="text-xs font-medium text-gray-600">Task date
+                            <label className="text-xs font-medium text-gray-600">Task published
                               <input type="date" value={String(editForm.date || '')} onChange={(event) => setEditForm((current) => ({ ...current, date: event.target.value }))} className="mt-1 w-full rounded border p-2 text-sm" />
                             </label>
                             <label className="text-xs font-medium text-gray-600">Profile

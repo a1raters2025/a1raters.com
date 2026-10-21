@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { adminService, type ActivityEntry, type ActivityFilter, type AdminStats, type ActiveSession } from '../../services/adminService';
 import { GlassCard } from '../UI/GlassCard';
+import { formatNigeriaDateTime } from '../../utils/dateTime';
 import {
   Activity,
   Users,
@@ -466,7 +467,7 @@ export const AdminActivityMonitor: React.FC = () => {
                     <span className="text-sm text-slate-300">{entry.userName || 'System'}</span>
                     <span className="text-xs text-slate-500">{formatActionType(entry.action)}</span>
                     <time className="text-xs text-slate-500 ml-auto">
-                      {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {formatNigeriaDateTime(entry.createdAt)}
                     </time>
                   </div>
                 ))}

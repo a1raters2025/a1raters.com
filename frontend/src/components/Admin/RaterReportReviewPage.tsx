@@ -16,6 +16,7 @@ import {
   type RequestReport,
 } from '../../services/reportService';
 import { GlassCard } from '../UI/GlassCard';
+import { formatNigeriaDate, formatNigeriaDateTime } from '../../utils/dateTime';
 
 const CATEGORIES = [
   'All categories',
@@ -46,14 +47,6 @@ const REVIEW_STYLES: Record<Exclude<ReviewFilter, 'all'>, string> = {
   pending: 'border-amber-400/20 bg-amber-400/10 text-amber-300',
   approved: 'border-emerald-400/20 bg-emerald-400/10 text-emerald-300',
   rejected: 'border-rose-400/20 bg-rose-400/10 text-rose-300',
-};
-
-const formatDate = (value?: string) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? '—'
-    : date.toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' });
 };
 
 export const RaterReportReviewPage: React.FC = () => {
@@ -311,8 +304,8 @@ export const RaterReportReviewPage: React.FC = () => {
                             <dd className="mt-1 truncate font-medium text-slate-200">{report.profileName}</dd>
                           </div>
                           <div>
-                            <dt className="text-[11px] uppercase tracking-wide text-slate-500">Date</dt>
-                            <dd className="mt-1 text-slate-300">{formatDate(report.date)}</dd>
+                            <dt className="text-[11px] uppercase tracking-wide text-slate-500">Task published</dt>
+                            <dd className="mt-1 text-slate-300">{formatNigeriaDate(report.date)}</dd>
                           </div>
                           <div>
                             <dt className="text-[11px] uppercase tracking-wide text-slate-500">Hours</dt>
@@ -324,7 +317,7 @@ export const RaterReportReviewPage: React.FC = () => {
                           </div>
                           <div>
                             <dt className="text-[11px] uppercase tracking-wide text-slate-500">Submitted</dt>
-                            <dd className="mt-1 text-slate-300">{formatDate(report.submissionTime)}</dd>
+                            <dd className="mt-1 text-slate-300">{formatNigeriaDateTime(report.submissionTime)}</dd>
                           </div>
                         </dl>
 

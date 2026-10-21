@@ -5,6 +5,7 @@ import type { RequestReport } from '../../services/reportService';
 import { reportService } from '../../services/reportService';
 import { invoiceService, type Invoice, type ManualReportItem } from '../../services/invoiceService';
 import { PasswordField } from '../UI/PasswordField';
+import { formatNigeriaDate, formatNigeriaDateTime } from '../../utils/dateTime';
 import { Home, Edit2, Trash2, Check, X, ArrowRight, ArrowLeft, AlertTriangle, UserX, FileText, Send, Plus, Mail, Briefcase, Shield, UserPlus, Clock } from 'lucide-react';
 
 interface AccountStatusSummary {
@@ -1367,7 +1368,7 @@ export const ReportHistory: React.FC = () => {
                                 <table className="min-w-full divide-y divide-gray-200 border border-gray-200 rounded-lg">
                                     <thead className="bg-gray-50">
                                         <tr>
-                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task published</th>
                                             {canViewAllAccounts && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rater</th>}
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profile</th>
                                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
@@ -1385,7 +1386,7 @@ export const ReportHistory: React.FC = () => {
                                             const isEditing = editingId === report.id;
                                             return (
                                                 <tr key={report.id} className={isEditing ? "bg-blue-50" : ""}>
-                                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{report.date}</td>
+                                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">{formatNigeriaDate(report.date)}</td>
 
                                                     {canViewAllAccounts && (
                                                         <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">{report.raterName}</td>
@@ -1473,7 +1474,7 @@ export const ReportHistory: React.FC = () => {
                                                         {report.submissionTime ? (
                                                             <div className="flex items-center gap-1">
                                                                 <Clock className="w-3 h-3" />
-                                                                {new Date(report.submissionTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                {formatNigeriaDateTime(report.submissionTime)}
                                                             </div>
                                                         ) : 'N/A'}
                                                     </td>

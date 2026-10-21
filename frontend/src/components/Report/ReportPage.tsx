@@ -5,6 +5,7 @@ import { authService } from '../../services/authService';
 import { reportService } from '../../services/reportService';
 import { Save, Plus, Trash2, Home } from 'lucide-react';
 import { GlassCard } from '../UI/GlassCard';
+import { getNigeriaDateInputValue } from '../../utils/dateTime';
 
 interface ReportEntry {
   id: number;
@@ -42,11 +43,7 @@ const CATEGORIES: CategoryOption[] = [
 
 const PROXIES = ['US', 'UK', 'Japan', 'China', 'Germany', 'France', 'Canada', 'Australia'];
 const HOURLY_RATES = [2000, 2500, 3000, 3500, 4000];
-const getLocalDate = () => {
-  const now = new Date();
-  const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
-  return localDate.toISOString().split('T')[0];
-};
+const getLocalDate = () => getNigeriaDateInputValue();
 
 export const ReportPage: React.FC = () => {
   const navigate = useNavigate();
@@ -179,7 +176,7 @@ export const ReportPage: React.FC = () => {
           >
             <Home className="w-4 h-4 mr-2" /> Home
           </button>
-          <div className="text-slate-400 font-medium">Task date: {date}</div>
+          <div className="text-slate-400 font-medium">Task published: {date}</div>
         </div>
 
         <div className="flex justify-between items-end mb-6">
@@ -268,13 +265,14 @@ export const ReportPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">Task date (when the task was published)</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Date task was published</label>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
                 />
+                <p className="mt-1.5 text-xs text-slate-400">Submit by 10:00 AM WAT on the day after publication. Later submissions incur a ₦10,000 penalty; submissions before the deadline are not penalized.</p>
               </div>
 
               <div>
@@ -402,7 +400,7 @@ export const ReportPage: React.FC = () => {
                       <thead className="bg-white/5 text-xs uppercase tracking-wide text-slate-400">
                         <tr>
                           <th className="px-4 py-3">Profile</th>
-                          <th className="px-4 py-3">Task Date</th>
+                          <th className="px-4 py-3">Task published</th>
                           <th className="px-4 py-3">Category</th>
                           <th className="px-4 py-3">Hours</th>
                           <th className="px-4 py-3">Submitted</th>

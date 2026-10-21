@@ -5,6 +5,7 @@ import { authService } from '../../services/authService';
 import { clientService, type ClientDashboardResponse } from '../../services/clientService';
 import { GlassCard } from '../UI/GlassCard';
 import { notificationService, type AppNotification } from '../../services/notificationService';
+import { formatNigeriaDateTime } from '../../utils/dateTime';
 
 export const ClientDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -131,7 +132,7 @@ export const ClientDashboard: React.FC = () => {
                 <li key={notification.id} className="border-b border-white/10 pb-3 last:border-0">
                   <p className="font-semibold text-slate-100">{notification.title}</p>
                   <p className="mt-1 text-sm text-slate-400">{notification.message}</p>
-                  <time className="mt-1 block text-xs text-slate-500">{new Date(notification.createdAt).toLocaleString()}</time>
+                  <time className="mt-1 block text-xs text-slate-500">{formatNigeriaDateTime(notification.createdAt)}</time>
                 </li>
               ))}
             </ul>

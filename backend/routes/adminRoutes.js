@@ -30,13 +30,13 @@ const getReportEarnings = async (userIds, session) => {
         { $match: { submittedBy: { $in: userIds }, reviewStatus: "approved", isDeleted: { $ne: true } } },
         { $group: {
             _id: "$submittedBy",
-            totalEarned: { $sum: { $max: [0, { $subtract: [
+            totalEarned: { $sum: { $subtract: [
                 { $multiply: [
                     { $convert: { input: "$hoursWorked", to: "double", onError: 0, onNull: 0 } },
                     { $convert: { input: "$hourlyRate", to: "double", onError: 0, onNull: 0 } },
                 ] },
                 { $convert: { input: "$latePenalty", to: "double", onError: 0, onNull: 0 } },
-            ] }] } },
+            ] } },
         } },
     ]);
     if (session) aggregation.session(session);
