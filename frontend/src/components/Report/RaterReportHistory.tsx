@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { authService } from '../../services/authService';
 import { reportService, type RequestReport } from '../../services/reportService';
 import { GlassCard } from '../UI/GlassCard';
-import { formatNigeriaDate, formatNigeriaDateTime } from '../../utils/dateTime';
+import { formatNigeriaDate, formatNigeriaDateTime, isBeforeReportEditDeadline } from '../../utils/dateTime';
 import {
   Home,
   Trash2,
@@ -76,49 +76,38 @@ export const RaterReportHistory: React.FC = () => {
     void fetchMyReports();
   }, [fetchMyReports]);
 
-  const filteredReports = reports.filter((r) => {
-    if (!r.isDeleted) {
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        return (
-          r.email?.toLowerCase().includes(term) ||
-          r.profileName?.toLowerCase().includes(term) ||
-          r.raterName?.toLowerCase().includes(term) ||
-          r.category?.toLowerCase().includes(term)
-        );
-      }
-    }
-    return !r.isDeleted;
+  const filteredReports = reports.filter((report) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return report.email?.toLowerCase().includes(term) ||
+      report.profileName?.toLowerCase().includes(term) ||
+      report.raterName?.toLowerCase().includes(term) ||
+      report.category?.toLowerCase().includes(term);
   });
+  const activeReports = filteredReports.filter((report) => !report.isDeleted);
 
   const handleDeleteReport = async (report: RequestReport) => {
     if (!report._id) return;
 
     const confirmed = window.confirm(
-      `Delete report for ${report.profileName} (${report.email})?\n\n` +
-        `This will: Remove the report from your active list and update all calculations.\n` +
-        `You will need to submit a new corrected report.\n\n` +
-        `The deletion will be logged for administrators.`
+      `Archive report for ${report.profileName} (${report.email})?\n\n` +
+        `This will archive the report from active views while keeping it in your report history.\n` +
+        `You can submit a corrected report separately.\n\n` +
+        `The archive action will be logged for administrators.`
     );
 
     if (!confirmed) return;
 
     try {
-      await reportService.deleteReport(report._id, 'Rater-initiated correction/resubmission');
-      setReports((prev) => prev.filter((r) => r._id !== report._id));
-      alert(`Report deleted. You can now submit a corrected version via "Submit Report" on the dashboard.`);
+      await reportService.deleteReport(report._id, 'Rater-initiated archive');
+      setReports((prev) => prev.map((current) => current._id === report._id
+        ? { ...current, isDeleted: true, deletedAt: new Date().toISOString() }
+        : current));
+      alert('Report archived. It will remain visible in your report history.');
     } catch (err) {
       console.error('Failed to delete report:', err);
       alert('Failed to delete report. Please try again.');
     }
-  };
-
-  const handleResubmit = (report: RequestReport) => {
-    navigate('/report', {
-      state: {
-        resubmitFrom: report,
-      },
-    });
   };
 
   const handleViewDetail = (report: RequestReport) => {
@@ -177,10 +166,10 @@ export const RaterReportHistory: React.FC = () => {
     );
   };
 
-  const totalHours = filteredReports.reduce((sum, r) => sum + (Number(r.hoursWorked) || 0), 0);
-  const totalTasks = filteredReports.reduce((sum, r) => sum + (Number(r.tasksWorked) || 0), 0);
-  const totalLatePenalty = filteredReports.reduce((sum, r) => sum + (r.latePenalty || 0), 0);
-  const weeklyReports = Object.values(filteredReports.reduce<Record<string, {
+  const totalHours = activeReports.reduce((sum, r) => sum + (Number(r.hoursWorked) || 0), 0);
+  const totalTasks = activeReports.reduce((sum, r) => sum + (Number(r.tasksWorked) || 0), 0);
+  const totalLatePenalty = activeReports.reduce((sum, r) => sum + (r.latePenalty || 0), 0);
+  const weeklyReports = Object.values(activeReports.reduce<Record<string, {
     weekStart: string;
     reports: number;
     hours: number;
@@ -267,7 +256,7 @@ export const RaterReportHistory: React.FC = () => {
                   <div>
                     <dt className="text-xs text-gray-400">Task published</dt>
                     <dd className="font-semibold text-gray-900">
-                      {formatNigeriaDate(selectedReport.date)}
+                      {formatNigeriaDate(selectedReport.taskPublishedDate || selectedReport.date)}
                     </dd>
                   </div>
                   <div>
@@ -304,19 +293,20 @@ export const RaterReportHistory: React.FC = () => {
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => handleResubmit(selectedReport)}
-              className="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center"
+              onClick={() => { handleBackToList(); beginEdit(selectedReport); }}
+              disabled={Boolean(selectedReport.isDeleted) || selectedReport.status === 'Paid' || (typeof selectedReport.invoiceId === 'object' && selectedReport.invoiceId?.status === 'Paid') || !isBeforeReportEditDeadline(selectedReport.taskPublishedDate || selectedReport.date)}
+              className="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <RefreshCw className="w-4 h-4 mr-2" /> Resubmit Corrected Report
+              <Edit2 className="w-4 h-4 mr-2" /> Edit report
             </motion.button>
-            <motion.button
+            {!selectedReport.isDeleted && <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => handleDeleteReport(selectedReport)}
               className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg shadow-lg transition-colors flex items-center"
             >
-              <Trash2 className="w-4 h-4 mr-2" /> Delete Report
-            </motion.button>
+              <Trash2 className="w-4 h-4 mr-2" /> Archive Report
+            </motion.button>}
           </div>
         </div>
       </div>
@@ -341,6 +331,10 @@ export const RaterReportHistory: React.FC = () => {
             </span>
           </div>
         </div>
+
+        <p className="-mt-3 mb-5 text-sm text-gray-500">
+          Your submitted reports are saved to your account and stay in this history. You can edit an unpaid report until 10:00 AM WAT on the day after its publication date.
+        </p>
 
         <div className="mb-4 flex gap-3">
           <div className="relative flex-1">
@@ -438,10 +432,11 @@ export const RaterReportHistory: React.FC = () => {
                     <React.Fragment key={report._id || report.id}>
                     <tr className="hover:bg-gray-50">
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatNigeriaDate(report.date)}
+                        {formatNigeriaDate(report.taskPublishedDate || report.date)}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {report.profileName}
+                        {report.isDeleted && <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">Archived</span>}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                         {report.email}
@@ -480,29 +475,21 @@ export const RaterReportHistory: React.FC = () => {
                           >
                             <FileText className="w-4 h-4" />
                           </button>
-                          {report._id && report.status !== 'Paid' && !(typeof report.invoiceId === 'object' && report.invoiceId?.status === 'Paid') && (
+                          {report._id && !report.isDeleted && report.status !== 'Paid' && !(typeof report.invoiceId === 'object' && report.invoiceId?.status === 'Paid') && (
                             <button
                               onClick={() => beginEdit(report)}
-                              className="text-emerald-600 hover:text-emerald-800 p-1"
-                              title={report.reviewStatus === 'approved' ? 'Edit report; changes will need approval again' : 'Edit report'}
+                              disabled={!isBeforeReportEditDeadline(report.taskPublishedDate || report.date)}
+                              className="p-1 text-emerald-600 hover:text-emerald-800 disabled:cursor-not-allowed disabled:text-gray-300"
+                              title={!isBeforeReportEditDeadline(report.taskPublishedDate || report.date) ? 'Editing closed at 10:00 AM WAT the day after publication' : report.reviewStatus === 'approved' ? 'Edit report; changes will need approval again' : 'Edit report'}
                             >
                               <Edit2 className="w-4 h-4" />
                             </button>
                           )}
-                          <button
-                            onClick={() => handleResubmit(report)}
-                            className="text-indigo-600 hover:text-indigo-800 p-1"
-                            title="Resubmit corrected report"
-                          >
-                            <RefreshCw className="w-4 h-4" />
-                          </button>
-                          <button
+                          {!report.isDeleted && <button
                             onClick={() => handleDeleteReport(report)}
                             className="text-red-600 hover:text-red-800 p-1"
-                            title="Delete report"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            title="Archive report (keeps it in history)"
+                          ><Trash2 className="w-4 h-4" /></button>}
                         </div>
                       </td>
                     </tr>
@@ -510,9 +497,9 @@ export const RaterReportHistory: React.FC = () => {
                       <tr>
                         <td colSpan={9} className="bg-indigo-50 px-4 py-4">
                           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            <label className="text-xs font-medium text-gray-600">Task published
-                              <input type="date" value={String(editForm.date || '')} onChange={(event) => setEditForm((current) => ({ ...current, date: event.target.value }))} className="mt-1 w-full rounded border p-2 text-sm" />
-                            </label>
+                            <div className="text-xs font-medium text-gray-600">Task published
+                              <p className="mt-1 rounded border bg-gray-100 p-2 text-sm">{formatNigeriaDate(report.taskPublishedDate || report.date)}</p>
+                            </div>
                             <label className="text-xs font-medium text-gray-600">Profile
                               <input value={String(editForm.profileName || '')} onChange={(event) => setEditForm((current) => ({ ...current, profileName: event.target.value }))} className="mt-1 w-full rounded border p-2 text-sm" />
                             </label>

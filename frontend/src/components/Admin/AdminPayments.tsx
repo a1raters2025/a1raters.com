@@ -342,10 +342,12 @@ export const AdminPayments: React.FC = () => {
                                                             <button
                                                                 onClick={() => handleRecordManualPayment(rater)}
                                                                 disabled={processingPayments.has(rater._id) || Boolean(rater.pendingPayoutReference) || rater.paymentStatus === 'processing'}
-                                                                className="px-2.5 py-1.5 text-xs bg-cyan-500/20 text-cyan-300 rounded-lg hover:bg-cyan-500/30 transition-all disabled:opacity-50"
-                                                                title="Record as paid outside Paystack"
+                                                                className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500/20 px-2.5 py-1.5 text-xs text-cyan-300 transition-all hover:bg-cyan-500/30 disabled:opacity-50"
+                                                                title="Mark as paid manually without gateway verification"
+                                                                aria-label={`Mark ${rater.userName} as paid manually`}
                                                             >
                                                                 <CheckCircle size={14} />
+                                                                <span className="hidden xl:inline">Mark paid</span>
                                                             </button>
                                                         </>
                                                     )}
@@ -391,6 +393,10 @@ export const AdminPayments: React.FC = () => {
                     rater={selectedRater}
                     onClose={() => setShowDetailsModal(false)}
                     onReviewManualDetails={handleReviewManualDetails}
+                    onRecordManualPayment={() => {
+                        void handleRecordManualPayment(selectedRater);
+                        setShowDetailsModal(false);
+                    }}
                     onApprovePayment={() => {
                         if (selectedRater._id) {
                             handleApprovePayment(selectedRater);
@@ -407,8 +413,9 @@ const PaymentDetailsModal: React.FC<{
     rater: RaterPayment;
     onClose: () => void;
     onApprovePayment: () => void;
+    onRecordManualPayment: () => void;
     onReviewManualDetails: (decision: 'approved' | 'rejected') => void;
-}> = ({ rater, onClose, onApprovePayment, onReviewManualDetails }) => {
+}> = ({ rater, onClose, onApprovePayment, onRecordManualPayment, onReviewManualDetails }) => {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <motion.div
@@ -470,14 +477,14 @@ const PaymentDetailsModal: React.FC<{
                     </GlassCard>
                 </div>
 
-                <div className="flex justify-end gap-3">
+                <div className="flex flex-wrap justify-end gap-3">
                     <button
                         onClick={onClose}
                         className="px-4 py-2 bg-slate-800/50 text-slate-300 rounded-xl hover:bg-slate-700/50 transition-all"
                     >
                         Close
                     </button>
-                    {rater.paymentStatus !== 'paid' && (
+                    {rater.paymentStatus !== 'paid' && rater.paymentDetails?.method !== 'manual' && (
                         <button
                             onClick={onApprovePayment}
                             disabled={rater.paymentDetails?.method === 'manual' || (rater.paymentStatus !== 'processing' && (!rater.paymentDetails?.isVerified || !rater.paymentDetails?.bankCode || rater.totalEarned <= rater.totalPaid))}
@@ -485,6 +492,16 @@ const PaymentDetailsModal: React.FC<{
                         >
                             <Banknote size={16} />
                             {rater.pendingPayoutReference ? 'Verify transfer' : 'Approve payment'}
+                        </button>
+                    )}
+                    {rater.paymentStatus !== 'paid' && (rater.totalEarned || 0) > (rater.totalPaid || 0) && rater.paymentStatus !== 'processing' && !rater.pendingPayoutReference && (
+                        <button
+                            onClick={onRecordManualPayment}
+                            className="inline-flex items-center gap-2 rounded-xl bg-cyan-500/20 px-4 py-2 text-cyan-200 transition-all hover:bg-cyan-500/30"
+                            title="Mark as paid manually without gateway verification"
+                        >
+                            <CheckCircle size={16} />
+                            Mark paid manually
                         </button>
                     )}
                     {rater.paymentDetails?.method === 'manual' && rater.paymentDetails.verificationStatus === 'pending_review' && (

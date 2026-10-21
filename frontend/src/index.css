@@ -916,6 +916,7 @@ select option:checked { color: #111827; background: #e5e7eb; }
   .task-quick-actions .btn-glass, .task-quick-actions .btn-glass-primary { justify-content: center; }
 }
 @media (max-width: 480px) {
+  .app-header-layer { padding: 10px 12px; gap: 6px; }
   .page-content, .page-stack { padding: 16px; }
   .page-header { padding: 16px; }
   .category-grid { grid-template-columns: 1fr; }

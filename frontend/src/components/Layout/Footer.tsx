@@ -169,7 +169,7 @@ export const Footer: React.FC = () => {
           )}
         </div>
         <span className="flex items-center gap-1">
-          Made with <Heart className="w-3 h-3 text-rose-400" /> © {currentYear} A1 Raters
+          Professional Rating Platform © {currentYear} A1 Raters
         </span>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <Shield size={12} /> Protected & encrypted

@@ -27,6 +27,7 @@ export interface RequestReport {
   hourlyRate?: number;
   submissionId?: string;
   date: string;
+  taskPublishedDate?: string;
   submissionTime?: string;
   description?: string;
   paymentDetails?: {
@@ -462,21 +463,19 @@ export const reportService = {
   },
 
   async deleteReport(id: string | number, reason?: string): Promise<boolean> {
-    try {
-      const reportId = typeof id === 'string' && id.startsWith('local_') ? null : id;
-      if (reportId) {
-        let endpoint = `/reports/${reportId}`;
-        if (reason) endpoint += `?reason=${encodeURIComponent(reason)}`;
-        const response = await apiClient.delete<{ status: string }>(endpoint);
-        if (response.status === 'success') {
-          return true;
-        }
-      }
-    } catch (error) {
-      console.error('Failed to delete report on backend:', error);
-    }
+    const isServerReportId = typeof id === 'string' && /^[a-f\d]{24}$/i.test(id);
+    if (!isServerReportId) return this.deleteReportLocal(id);
 
-    return this.deleteReportLocal(id);
+    try {
+      let endpoint = `/reports/${encodeURIComponent(id)}`;
+      if (reason) endpoint += `?reason=${encodeURIComponent(reason)}`;
+      const response = await apiClient.delete<{ status: string; message?: string }>(endpoint);
+      if (response.status === 'success') return true;
+      throw new Error(response.message || 'Failed to archive report on the server');
+    } catch (error) {
+      console.error('Failed to archive report on backend:', error);
+      throw error instanceof Error ? error : new Error('Failed to archive report on the server');
+    }
   },
 
   async getDeletedReports(params?: {

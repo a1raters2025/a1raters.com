@@ -78,13 +78,14 @@ export const createReport = async (req, res, next) => {
   try {
     const reportData = {
       ...req.body,
+      taskPublishedDate: req.body.date,
       submittedBy: req.user._id,
       submissionTime: new Date(),
       reviewStatus: "pending",
       reviewNote: "",
     };
 
-    const penalty = isLateSubmission(reportData.submissionTime, reportData.date) ? LATE_PENALTY_AMOUNT : 0;
+    const penalty = isLateSubmission(reportData.submissionTime, reportData.taskPublishedDate) ? LATE_PENALTY_AMOUNT : 0;
     reportData.latePenalty = penalty;
 
     const report = await Report.create(reportData);
@@ -130,6 +131,7 @@ export const bulkCreateReports = async (req, res, next) => {
       const penalty = isLateSubmission(submittedAt, report.date) ? LATE_PENALTY_AMOUNT : 0;
       return {
         ...report,
+        taskPublishedDate: report.date,
         submittedBy: req.user._id,
         submissionTime: submittedAt,
         latePenalty: penalty,
@@ -465,7 +467,8 @@ export const getMyReports = async (req, res, next) => {
   try {
     const { startDate, endDate, status } = req.query;
 
-    const filter = { ...(await getOwnedReportFilter(req.user)), isDeleted: { $ne: true } };
+    // Keep archived submissions visible in the owner's full report history.
+    const filter = { ...(await getOwnedReportFilter(req.user)) };
     if (status) filter.status = status;
     if (startDate || endDate) {
       filter.date = {};
@@ -582,7 +585,10 @@ export const updateReport = async (req, res, next) => {
     }
 
     const isAdmin = req.user.role === "admin";
-    const isOwner = report.submittedBy?.toString() === req.user._id.toString();
+    let isOwner = report.submittedBy?.toString() === req.user._id.toString();
+    if (!isOwner && !report.submittedBy && report.raterName === req.user.userName) {
+      isOwner = await User.countDocuments({ userName: req.user.userName, role: "user" }) === 1;
+    }
     const wasApproved = report.reviewStatus === "approved";
     const previousApprovedEarnings =
       (Number(report.hoursWorked) || 0) * (Number(report.hourlyRate) || 0) - (Number(report.latePenalty) || 0);
@@ -590,6 +596,9 @@ export const updateReport = async (req, res, next) => {
       return next(new AppError("You can only edit your own reports", 403));
     }
     if (!isAdmin) {
+      if (isLateSubmission(new Date(), report.taskPublishedDate || report.date)) {
+        return next(new AppError("Reports can only be edited until 10:00 AM WAT on the day after the task was published", 409));
+      }
       const invoice = report.invoiceId
         ? await Invoice.findById(report.invoiceId).select("status")
         : null;
@@ -602,7 +611,7 @@ export const updateReport = async (req, res, next) => {
 
     const editableFields = isAdmin
       ? ALLOWED_EDIT_FIELDS
-      : ALLOWED_EDIT_FIELDS.filter((field) => field !== "raterName");
+      : ALLOWED_EDIT_FIELDS.filter((field) => field !== "raterName" && field !== "date");
     for (const key of editableFields) {
       if (req.body.hasOwnProperty(key)) {
         const oldValue = report[key];
@@ -621,7 +630,7 @@ export const updateReport = async (req, res, next) => {
       const updatedSubmissionTime = new Date();
       changes.push({ fieldName: "submissionTime", oldValue: report.submissionTime, newValue: updatedSubmissionTime });
       report.submissionTime = updatedSubmissionTime;
-      const updatedPenalty = isLateSubmission(updatedSubmissionTime, report.date) ? LATE_PENALTY_AMOUNT : 0;
+      const updatedPenalty = isLateSubmission(updatedSubmissionTime, report.taskPublishedDate || report.date) ? LATE_PENALTY_AMOUNT : 0;
       if (report.latePenalty !== updatedPenalty) {
         changes.push({ fieldName: "latePenalty", oldValue: report.latePenalty, newValue: updatedPenalty });
         report.latePenalty = updatedPenalty;
@@ -765,7 +774,10 @@ export const deleteReport = async (req, res, next) => {
       return next(new AppError("Report not found", 404));
     }
 
-    const isOwner = report.submittedBy && req.user && report.submittedBy.toString() === req.user._id.toString();
+    let isOwner = report.submittedBy && req.user && report.submittedBy.toString() === req.user._id.toString();
+    if (!isOwner && !report.submittedBy && req.user?.role === "user" && report.raterName === req.user.userName) {
+      isOwner = await User.countDocuments({ userName: req.user.userName, role: "user" }) === 1;
+    }
     const isAdmin = req.user && req.user.role === "admin";
 
     if (!isOwner && !isAdmin) {
@@ -774,7 +786,7 @@ export const deleteReport = async (req, res, next) => {
 
     const oldData = report.toObject();
 
-    if (isAdmin || !req.query.hardDelete) {
+    if (!isAdmin || !req.query.hardDelete) {
       report.isDeleted = true;
       report.deletedAt = new Date();
       report.deletedBy = req.user._id;

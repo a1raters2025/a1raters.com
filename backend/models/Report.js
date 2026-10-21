@@ -84,6 +84,10 @@ const reportSchema = new mongoose.Schema(
       type: Date,
       required: [true, "Date is required"],
     },
+    taskPublishedDate: {
+      type: Date,
+      immutable: true,
+    },
     description: {
       type: String,
     },

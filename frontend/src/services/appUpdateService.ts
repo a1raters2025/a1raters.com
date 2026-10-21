@@ -24,8 +24,13 @@ export const appUpdateService = {
             void registration.update().catch(() => undefined);
           }
         };
-        window.setInterval(checkForUpdate, 60_000);
+        // Check active sessions frequently; browsers may throttle SW checks,
+        // while focus/online events trigger an immediate check when possible.
+        checkForUpdate();
+        window.setInterval(checkForUpdate, 30_000);
         window.addEventListener('focus', checkForUpdate);
+        window.addEventListener('online', checkForUpdate);
+        document.addEventListener('visibilitychange', checkForUpdate);
       },
     });
   },

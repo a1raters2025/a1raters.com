@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { useMobileMenu } from '../../contexts/MobileMenuContext';
-import { Menu, Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun } from 'lucide-react';
+import { Menu, Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun, Clock3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { notificationService, type AppNotification } from '../../services/notificationService';
 
@@ -18,9 +18,21 @@ export const Header: React.FC = () => {
   const user = authService.getUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dark, setDark] = useState(true);
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [notifications, setNotifications] = useState<AppNotification[]>(notificationService.getAll());
   const menuRef = useRef<HTMLDivElement>(null);
   React.useEffect(() => notificationService.subscribe(setNotifications), []);
+  useEffect(() => {
+    const timer = window.setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const nigeriaDate = new Intl.DateTimeFormat('en-NG', {
+    timeZone: 'Africa/Lagos', day: '2-digit', month: 'short', year: 'numeric',
+  }).format(currentTime);
+  const nigeriaTime = new Intl.DateTimeFormat('en-NG', {
+    timeZone: 'Africa/Lagos', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+  }).format(currentTime);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -92,6 +104,13 @@ export const Header: React.FC = () => {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-1 sm:gap-2">
+        <div className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-slate-300 sm:flex" aria-label={`Current Nigeria time ${nigeriaTime}, ${nigeriaDate}`}>
+          <Clock3 className="h-4 w-4 shrink-0 text-indigo-300" />
+          <div className="leading-tight">
+            <div className="text-xs font-semibold tabular-nums text-white">{nigeriaTime} <span className="font-normal text-slate-400">WAT</span></div>
+            <div className="text-[10px] text-slate-400">{nigeriaDate}</div>
+          </div>
+        </div>
         {/* Search - show on md and up, compact on sm */}
         <div className="relative hidden sm:flex">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -223,6 +242,12 @@ export const Header: React.FC = () => {
             </>
           )}
         </div>
+      </div>
+      <div className="flex w-full items-center justify-center gap-1.5 border-t border-white/5 pt-1.5 text-slate-300 sm:hidden" aria-label={`Current Nigeria time ${nigeriaTime}, ${nigeriaDate}`}>
+        <Clock3 className="h-3.5 w-3.5 shrink-0 text-indigo-300" />
+        <span className="text-[11px] font-semibold tabular-nums text-white">{nigeriaTime} <span className="font-normal text-slate-400">WAT</span></span>
+        <span className="text-[11px] text-slate-500">·</span>
+        <span className="text-[11px] text-slate-300">{nigeriaDate}</span>
       </div>
     </motion.header>
   );
