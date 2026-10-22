@@ -487,7 +487,7 @@ const PaymentDetailsModal: React.FC<{
                     {rater.paymentStatus !== 'paid' && rater.paymentDetails?.method !== 'manual' && (
                         <button
                             onClick={onApprovePayment}
-                            disabled={rater.paymentDetails?.method === 'manual' || (rater.paymentStatus !== 'processing' && (!rater.paymentDetails?.isVerified || !rater.paymentDetails?.bankCode || rater.totalEarned <= rater.totalPaid))}
+                            disabled={rater.paymentStatus !== 'processing' && (!rater.paymentDetails?.isVerified || !rater.paymentDetails?.bankCode || rater.totalEarned <= rater.totalPaid)}
                             className="px-4 py-2 bg-green-500/20 text-green-400 rounded-xl hover:bg-green-500/30 transition-all flex items-center gap-2 disabled:opacity-50"
                         >
                             <Banknote size={16} />

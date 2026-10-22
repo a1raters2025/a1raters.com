@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { APP_CONFIG } from '../../config/appConfig';
 import {
-  Heart,
   Shield,
   Clock,
   Mail,
