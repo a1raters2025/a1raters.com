@@ -25,28 +25,6 @@ const normalizeCategory = (c) => {
   return map[c] || c;
 };
 
-const buildUserCategoryFilter = (user) => {
-  if (!user) return null;
-  if (user.role === "admin" || user.role === "client") return null;
-  if (user.role === "user" && Array.isArray(user.categories) && user.categories.length) {
-    return { category: { $in: user.categories.map(normalizeCategory) } };
-  }
-  return null;
-};
-
-const applyCategoryScope = (filter, user) => {
-  const catFilter = buildUserCategoryFilter(user);
-  if (catFilter) {
-    if (filter.category) {
-      const existing = Array.isArray(filter.category) ? filter.category : [filter.category];
-      filter.category = { $in: existing.filter((c) => catFilter.category.$in.includes(c)) };
-    } else {
-      Object.assign(filter, catFilter);
-    }
-  }
-  return filter;
-};
-
 export const assignRater = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -59,6 +37,14 @@ export const assignRater = async (req, res, next) => {
 
     if (task.status === "done" || task.status === "expired") {
       return next(new AppError("Task is no longer available", 400));
+    }
+
+    const hasAnotherActiveRater = task.currentRater
+      && task.currentRater.toString() !== userId.toString()
+      && task.expiresAt
+      && new Date(task.expiresAt).getTime() > Date.now();
+    if (hasAnotherActiveRater) {
+      return next(new AppError("This task is currently being worked on by another rater", 409));
     }
 
     const alreadyAssigned = task.assignedRaters.includes(userId);
@@ -176,13 +162,6 @@ export const getActiveTasks = async (req, res, next) => {
     if (subCategory) filter.subCategory = subCategory;
     if (mode) filter.usageMode = mode;
 
-    if (req.user.role === "user") {
-      const catFilter = buildUserCategoryFilter(req.user);
-      if (catFilter) {
-        Object.assign(filter, catFilter);
-      }
-    }
-
     const skip = (Number(page) - 1) * Number(limit);
 
     const tasks = await Task.find(filter)
@@ -241,13 +220,6 @@ export const getAllTasks = async (req, res, next) => {
     if (category) filter.category = normalizeCategory(category);
     if (subCategory) filter.subCategory = subCategory;
     if (mode) filter.usageMode = mode;
-
-    if (req.user.role === "user") {
-      const catFilter = buildUserCategoryFilter(req.user);
-      if (catFilter) {
-        Object.assign(filter, catFilter);
-      }
-    }
 
     const skip = (Number(page) - 1) * Number(limit);
 
