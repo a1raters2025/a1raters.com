@@ -4,12 +4,28 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
 
+const appVersion = process.env.VERCEL_GIT_COMMIT_SHA
+  || process.env.VERCEL_DEPLOYMENT_ID
+  || `local-${Date.now()}`
+
+const appVersionAsset = {
+  name: 'app-version-asset',
+  generateBundle(this: { emitFile: (asset: { type: 'asset'; fileName: string; source: string }) => void }) {
+    this.emitFile({
+      type: 'asset',
+      fileName: 'version.json',
+      source: JSON.stringify({ version: appVersion }),
+    })
+  },
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
     babel({ presets: [reactCompilerPreset()] }),
+    appVersionAsset,
     VitePWA({
       registerType: 'prompt',
       includeAssets: [
@@ -63,5 +79,6 @@ export default defineConfig({
   ],
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production'),
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
 })
