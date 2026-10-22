@@ -417,12 +417,12 @@ const PaymentDetailsModal: React.FC<{
     onReviewManualDetails: (decision: 'approved' | 'rejected') => void;
 }> = ({ rater, onClose, onApprovePayment, onRecordManualPayment, onReviewManualDetails }) => {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/50 p-3 backdrop-blur-sm sm:items-center sm:p-5">
             <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-slate-900 rounded-2xl border border-white/10 p-6 w-full max-w-2xl mx-4"
+                className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-2xl border border-white/10 bg-slate-900 p-4 shadow-2xl sm:max-h-[calc(100dvh-2.5rem)] sm:p-6"
             >
                 <h3 className="text-lg font-semibold text-white mb-4">Rater Payment Details</h3>
 
@@ -460,7 +460,7 @@ const PaymentDetailsModal: React.FC<{
                     )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                     <GlassCard className="p-4 text-center">
                         <div className="text-xl font-bold text-cyan-400">{formatNaira(rater.totalEarned || 0)}</div>
                         <div className="text-xs text-slate-400">Total Earned</div>
@@ -477,7 +477,7 @@ const PaymentDetailsModal: React.FC<{
                     </GlassCard>
                 </div>
 
-                <div className="flex flex-wrap justify-end gap-3">
+                <div className="flex flex-wrap justify-end gap-2 sm:gap-3">
                     <button
                         onClick={onClose}
                         className="px-4 py-2 bg-slate-800/50 text-slate-300 rounded-xl hover:bg-slate-700/50 transition-all"

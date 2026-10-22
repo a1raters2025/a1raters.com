@@ -210,19 +210,20 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className={`${onClose ? 'min-h-0' : 'min-h-screen'} bg-slate-900`}>
+      <div className="relative z-10 mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-8 lg:px-8">
         {/* Header */}
         <header className="mb-8 flex items-center justify-between flex-wrap gap-4">
-          <div className="flex items-center">
+          <div className="flex min-w-0 items-center">
             <motion.button
               whileHover={{ scale: 1.05 }}
               onClick={onClose ? onClose : () => navigate('/dashboard')}
-              className="mr-4 text-slate-400 hover:text-white"
+              className="mr-3 shrink-0 rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white sm:mr-4"
+              aria-label="Back"
             >
-              <ArrowLeft size={24} />
+              <ArrowLeft size={20} />
             </motion.button>
-            <h1 className="text-2xl font-bold text-white">Admin Task Creator</h1>
+            <h1 className="truncate text-xl font-bold text-white sm:text-2xl">Admin Task Creator</h1>
           </div>
 
           <div className="relative">
@@ -241,7 +242,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
             {showKeyInput && (
               <motion.div
-                className="absolute top-full right-0 mt-2 w-72 glass-card-strong p-4 shadow-xl z-50"
+                className="absolute right-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] glass-card-strong p-4 shadow-xl"
                 initial={{ opacity: 0, scale: 0.96, y: -8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: -8 }}
@@ -267,7 +268,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* LEFT: Config & Image */}
           <div className="space-y-6 lg:col-span-1">
-            <GlassCard className="p-6" delay={0.1}>
+            <GlassCard className="p-4 sm:p-6" delay={0.1}>
               <h2 className="text-lg font-semibold mb-4 text-slate-200">1. Setup</h2>
               <div className="space-y-4">
                 <div>
@@ -313,7 +314,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             </GlassCard>
 
             {/* Image Upload */}
-            <GlassCard className="p-6" delay={0.2}>
+            <GlassCard className="p-4 sm:p-6" delay={0.2}>
               <h2 className="text-lg font-semibold mb-4 text-slate-200">2. Upload & Analyze (OpenAI)</h2>
 
               {parsingStatus === 'scanning' && (
@@ -359,9 +360,9 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
           {/* RIGHT: Preview Form */}
           <div className="lg:col-span-2 space-y-6">
-            <GlassCard className="p-6 h-full flex flex-col" delay={0.3}>
-              <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
-                <h2 className="text-lg font-semibold text-white flex items-center">
+            <GlassCard className="flex h-full min-w-0 flex-col p-4 sm:p-6" delay={0.3}>
+              <div className="mb-6 flex flex-wrap items-start justify-between gap-2 border-b border-white/5 pb-4">
+                <h2 className="flex min-w-0 items-center text-base font-semibold text-white sm:text-lg">
                   3. AI Extraction Preview
                   {!apiKey && (
                     <span className="ml-2 text-[10px] bg-yellow-500/10 text-yellow-300 px-2 py-0.5 rounded-full border border-yellow-500/20">
@@ -369,7 +370,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     </span>
                   )}
                 </h2>
-                <span className="text-xs text-slate-500">Review details before saving</span>
+                  <span className="text-xs text-slate-500">Review details before saving</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">

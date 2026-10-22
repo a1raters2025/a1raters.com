@@ -947,6 +947,31 @@ select option:checked { color: #111827; background: #e5e7eb; }
   .mobile-menu-btn { display: flex; }
 }
 
+/* Shared safeguards for narrow viewports and horizontally scrolling content */
+.app-scroll > main,
+.app-scroll > main > *,
+.page-stack,
+.page-stack > *,
+.glass-card {
+  min-width: 0;
+}
+.table-responsive,
+.overflow-x-auto {
+  max-width: 100%;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+}
+@media (max-width: 640px) {
+  .page-stack { gap: 16px; }
+  .page-intro { flex-wrap: wrap; gap: 12px; }
+  .page-intro > * { min-width: 0; max-width: 100%; }
+  .app-scroll main .min-h-screen.p-6 { padding: 1rem; }
+  .app-scroll main .min-h-screen.p-8 { padding: 1.25rem; }
+  .app-scroll input,
+  .app-scroll select,
+  .app-scroll textarea { max-width: 100%; min-width: 0; }
+}
+
 /* Print styles */
 @media print {
   .app-sidebar-shell, .app-header, .app-footer, .mobile-menu-btn, .sidebar-backdrop {

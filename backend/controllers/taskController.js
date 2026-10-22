@@ -1,6 +1,22 @@
 import Task from "../models/Task.js";
 import AppError from "../errors/AppError.js";
 import { emitAdminUpdate } from "../utils/socket.js";
+
+const notifyNewTasks = (tasks) => {
+  if (!tasks.length) return;
+  const categories = [...new Set(tasks.map((task) => task.category).filter(Boolean))];
+  const taskLabel = tasks.length === 1 ? "A new task" : `${tasks.length} new tasks`;
+  const categoryLabel = categories.length > 0 && categories.length <= 3
+    ? ` for ${categories.join(", ")}`
+    : "";
+
+  emitAdminUpdate({
+    title: tasks.length === 1 ? "New task available" : "New tasks available",
+    message: `${taskLabel}${categoryLabel} ${tasks.length === 1 ? "is" : "are"} now available in the workspace.`,
+    type: "info",
+    targetRoles: ["admin", "user", "client"],
+  });
+};
 import { logActivity } from "../models/activityLog.js";
 import { getConsentedUserAgent } from "../utils/deviceConsent.js";
 
@@ -205,13 +221,7 @@ export const createTask = async (req, res, next) => {
 
     const task = await Task.create(taskData);
 
-    emitAdminUpdate({
-      title: "New task available",
-      message: `A new ${task.category} evaluation task is available in your workspace.`,
-      type: "info",
-      categories: [task.category],
-      targetRoles: ["admin"],
-    });
+    notifyNewTasks([task]);
 
     res.status(201).json({
       status: "success",
@@ -414,6 +424,7 @@ export const bulkCreateTasks = async (req, res, next) => {
     }));
 
     const createdTasks = await Task.insertMany(tasks);
+    notifyNewTasks(createdTasks);
 
     res.status(201).json({
       status: "success",

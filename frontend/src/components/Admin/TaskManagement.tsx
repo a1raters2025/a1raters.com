@@ -178,14 +178,14 @@ export const TaskManagement: React.FC = () => {
 
         {showAddTask && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-2 backdrop-blur-sm sm:items-center sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowAddTask(false)}
           >
             <motion.div
-              className="w-full max-w-6xl h-[90vh] glass-card-strong rounded-2xl shadow-2xl overflow-hidden"
+              className="my-auto w-full max-w-6xl max-h-[calc(100dvh-1rem)] overflow-y-auto overscroll-contain rounded-2xl glass-card-strong shadow-2xl sm:max-h-[90dvh]"
               initial={{ opacity: 0, scale: 0.96, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 20 }}
@@ -342,14 +342,14 @@ export const TaskManagement: React.FC = () => {
 
         {showModal && selectedTask && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-2 backdrop-blur-sm sm:items-center sm:p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowModal(false)}
           >
             <motion.div
-              className="w-full max-w-4xl glass-card-strong p-6 rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
+              className="my-auto w-full max-w-4xl glass-card-strong p-4 sm:p-6 rounded-2xl shadow-2xl max-h-[calc(100dvh-1rem)] sm:max-h-[90dvh] overflow-y-auto overscroll-contain"
               initial={{ opacity: 0, scale: 0.96, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 20 }}

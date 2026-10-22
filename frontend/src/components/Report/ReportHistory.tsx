@@ -534,8 +534,8 @@ export const ReportHistory: React.FC = () => {
 
                     {/* ADMIN REGISTER MODAL */}
                     {showRegisterModal && (
-                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg animate-in fade-in zoom-in duration-200">
+                        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-black/50 p-2 backdrop-blur-sm sm:items-center sm:p-4">
+                            <div className="my-auto w-full max-w-lg rounded-xl bg-white p-4 shadow-2xl animate-in fade-in zoom-in duration-200 sm:p-6">
                                 <div className="flex justify-between items-center mb-6">
                                     <h3 className="text-xl font-bold text-gray-900">Register New Rater</h3>
                                     <button onClick={() => setShowRegisterModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -740,7 +740,7 @@ export const ReportHistory: React.FC = () => {
                                                     value={currentItem.dateRange}
                                                     onChange={e => setCurrentItem({ ...currentItem, dateRange: e.target.value })}
                                                 />
-                                                <div className="col-span-2">
+                                                <div className="md:col-span-2">
                                                     <input
                                                         type="number"
                                                         placeholder="Hours Worked"
@@ -760,7 +760,7 @@ export const ReportHistory: React.FC = () => {
 
                                         {/* Added Items List */}
                                         {batchItems.length > 0 && (
-                                            <div className="border rounded-lg overflow-hidden">
+                                            <div className="overflow-x-auto rounded-lg border">
                                                 <table className="min-w-full divide-y divide-gray-200 text-sm">
                                                     <thead className="bg-gray-50">
                                                         <tr>
