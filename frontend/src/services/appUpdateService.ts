@@ -8,6 +8,10 @@ let serviceWorkerRegistration: ServiceWorkerRegistration | undefined;
 let started = false;
 let updateAvailable = false;
 let announcedVersion = '';
+let versionCheckInFlight = false;
+
+const DEPLOYMENT_CHECK_INTERVAL_MS = 5_000;
+const SERVICE_WORKER_CHECK_INTERVAL_MS = 30_000;
 
 const announceUpdate = (version = 'service-worker-update') => {
   if (announcedVersion === version) return;
@@ -17,8 +21,9 @@ const announceUpdate = (version = 'service-worker-update') => {
 };
 
 const checkForDeployedVersion = async () => {
-  if (document.visibilityState !== 'visible' || !navigator.onLine) return;
+  if (versionCheckInFlight || document.visibilityState !== 'visible' || !navigator.onLine) return;
 
+  versionCheckInFlight = true;
   try {
     const response = await fetch(`/version.json?check=${Date.now()}`, {
       cache: 'no-store',
@@ -32,6 +37,8 @@ const checkForDeployedVersion = async () => {
     }
   } catch {
     // Stay quiet while offline or if the deployment marker is temporarily unavailable.
+  } finally {
+    versionCheckInFlight = false;
   }
 };
 
@@ -53,12 +60,12 @@ export const appUpdateService = {
     }
 
     void checkForDeployedVersion();
+    window.setInterval(() => void checkForDeployedVersion(), DEPLOYMENT_CHECK_INTERVAL_MS);
     window.setInterval(() => {
-      void checkForDeployedVersion();
       if (document.visibilityState === 'visible' && navigator.onLine) {
         void serviceWorkerRegistration?.update().catch(() => undefined);
       }
-    }, 30_000);
+    }, SERVICE_WORKER_CHECK_INTERVAL_MS);
     window.addEventListener('focus', () => void checkForDeployedVersion());
     window.addEventListener('online', () => void checkForDeployedVersion());
     document.addEventListener('visibilitychange', () => void checkForDeployedVersion());
