@@ -30,7 +30,7 @@ interface AdminSettings {
   smtpPassword: string;
   fromEmail: string;
   googleClientId: string;
-  openaiApiKey: string;
+  openaiConfigured: boolean;
   cloudinaryCloudName: string;
   cloudinaryApiKey: string;
   cloudinaryApiSecret: string;
@@ -59,7 +59,7 @@ export const AdminSettings: React.FC = () => {
     smtpPassword: '',
     fromEmail: APP_CONFIG.fromEmail,
     googleClientId: '',
-    openaiApiKey: '',
+    openaiConfigured: false,
     cloudinaryCloudName: '',
     cloudinaryApiKey: '',
     cloudinaryApiSecret: '',
@@ -365,11 +365,9 @@ export const AdminSettings: React.FC = () => {
         <div className="relative">
           <input
             type="password"
-            value={settings.openaiApiKey ? '••••••••••••' : ''}
-            onChange={(e) => handleChange('openaiApiKey', e.target.value)}
+            value={settings.openaiConfigured ? 'Configured on server' : 'Not configured'}
             disabled
             className="w-full px-4 py-2.5 pr-12 rounded-xl border border-white/10 bg-white/5 text-slate-400 transition-all text-sm outline-none"
-            placeholder="sk-proj-..."
           />
           <Shield size={18} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
         </div>

@@ -1,28 +1,22 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Upload, Save, CheckCircle, AlertCircle, Key, Loader2 } from 'lucide-react';
+import { ArrowLeft, Upload, Save, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { dataService, type TaskData } from '../../services/dataService';
 import { apiClient } from '../../services/apiClient';
-import { APP_CONFIG } from '../../config/appConfig';
-import { PasswordField } from '../UI/PasswordField';
 import { GlassCard } from '../UI/GlassCard';
 
 export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const navigate = useNavigate();
 
+  useEffect(() => {
+    localStorage.removeItem('openai_api_key');
+  }, []);
+
   const [category, setCategory] = useState('App Store');
   const [subCategory, setSubCategory] = useState('App Store Search Result');
   const [mode, setMode] = useState<'practice' | 'test'>('practice');
   const [deadlineAt, setDeadlineAt] = useState('');
-
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('openai_api_key') || '');
-  const [showKeyInput, setShowKeyInput] = useState(false);
-
-  const saveApiKey = (key: string) => {
-    setApiKey(key);
-    localStorage.setItem('openai_api_key', key);
-  };
 
   const [formState, setFormState] = useState({
     query: '',
@@ -53,67 +47,19 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   };
 
   const analyzeImageWithGPT = async (base64Image: string) => {
-    if (!apiKey) {
-      setParsingStatus('error');
-      setErrorMessage('OpenAI API Key is missing. Click the key icon to add it.');
-      setShowKeyInput(true);
-      return;
-    }
-
     setParsingStatus('scanning');
     setErrorMessage('');
 
     try {
-      const response = await fetch(`${APP_CONFIG.openaiApiUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'system',
-              content: `You are a data extraction assistant. Analyze the screenshot and extract:
-                1. Search Query (Top search bar or context)
-                2. "User Intent" (Deduce what the user is looking for based on the query. e.g. 'Navigational - facebook app')
-                3. Result Title (The main app/video/content name)
-                4. Subtitle (Developer/Artist/Channel)
-                5. Description (Short snippet or intro)
-                6. Suggest a "Correct Rating" (Navigational, Excellent, Good, Acceptable, Unacceptable).
-                7. Write a short "Reason" for the rating.
-
-              Return strictly Valid JSON with keys: query, intent, title, subtitle, description, rating, reason. Do not wrap in markdown code blocks.`,
-            },
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: 'Analyze this image.' },
-                { type: 'image_url', image_url: { url: base64Image } },
-              ],
-            },
-          ],
-          max_tokens: 500,
-          response_format: { type: 'json_object' },
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const msg = data.error?.message || 'Unknown OpenAI Error';
-        if (msg.includes('quota')) {
-          throw new Error('OpenAI Quota Exceeded. Please check your billing plan.');
-        }
-        throw new Error(msg);
-      }
-
-      let contentString = data.choices[0].message.content;
-      contentString = contentString.replace(/```json/g, '').replace(/```/g, '').trim();
-
-      const content = JSON.parse(contentString);
-      console.log('GPT Response:', content);
+      const response = await apiClient.post<{ status: string; data: {
+        query?: string;
+        title?: string;
+        subtitle?: string;
+        description?: string;
+        rating?: string;
+        reason?: string;
+      } }>('/tasks/analyze-image', { imageUrl: base64Image });
+      const content = response.data;
 
       setFormState((prev) => ({
         ...prev,
@@ -226,43 +172,6 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
             <h1 className="truncate text-xl font-bold text-white sm:text-2xl">Admin Task Creator</h1>
           </div>
 
-          <div className="relative">
-            <motion.button
-              onClick={() => setShowKeyInput(!showKeyInput)}
-              whileHover={{ scale: 1.03 }}
-              className={`flex items-center px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                apiKey
-                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
-                  : 'bg-slate-700/50 text-slate-400 border-white/10'
-              }}`}
-            >
-              <Key size={14} className="mr-1" />
-              {apiKey ? 'API Key Set' : 'Set API Key'}
-            </motion.button>
-
-            {showKeyInput && (
-              <motion.div
-                className="absolute right-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] glass-card-strong p-4 shadow-xl"
-                initial={{ opacity: 0, scale: 0.96, y: -8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: -8 }}
-                transition={{ duration: 0.2 }}
-              >
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
-                  OpenAI API Key
-                </label>
-                <PasswordField
-                  value={apiKey}
-                  onChange={(e) => saveApiKey(e.target.value)}
-                  placeholder="sk-proj-..."
-                  className="w-full p-2 rounded-lg border border-white/10 bg-white/5 text-white text-sm mb-2 focus:outline-none focus:border-indigo-400"
-                />
-                <p className="text-[10px] text-slate-500">
-                  Key is stored locally in your browser.
-                </p>
-              </motion.div>
-            )}
-          </div>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -364,11 +273,6 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
               <div className="mb-6 flex flex-wrap items-start justify-between gap-2 border-b border-white/5 pb-4">
                 <h2 className="flex min-w-0 items-center text-base font-semibold text-white sm:text-lg">
                   3. AI Extraction Preview
-                  {!apiKey && (
-                    <span className="ml-2 text-[10px] bg-yellow-500/10 text-yellow-300 px-2 py-0.5 rounded-full border border-yellow-500/20">
-                      Requires API Key
-                    </span>
-                  )}
                 </h2>
                   <span className="text-xs text-slate-500">Review details before saving</span>
               </div>

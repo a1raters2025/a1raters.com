@@ -15,6 +15,7 @@ import {
   assignRater,
   completeTask,
   getActiveTasks,
+  analyzeTaskImage,
 } from "../controllers/taskController.js";
 
 const Router = express.Router();
@@ -30,6 +31,7 @@ Router.route("/")
   .post(auth, admin, createTask);
 
 Router.route("/bulk").post(auth, admin, bulkCreateTasks);
+Router.route("/analyze-image").post(auth, admin, analyzeTaskImage);
 
 Router.route("/category/:category").get(auth, getTasksByCategory);
 Router.route("/category/:category/:subCategory").get(auth, getTasksByCategory);

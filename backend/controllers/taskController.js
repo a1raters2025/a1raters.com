@@ -91,6 +91,79 @@ export const assignRater = async (req, res, next) => {
   }
 };
 
+export const analyzeTaskImage = async (req, res, next) => {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return next(new AppError("OpenAI is not configured on the server", 503));
+    }
+
+    const { imageUrl } = req.body;
+    let parsedImageUrl;
+    try {
+      parsedImageUrl = new URL(imageUrl);
+    } catch {
+      return next(new AppError("A valid uploaded image URL is required", 400));
+    }
+    if (parsedImageUrl.protocol !== "https:" || parsedImageUrl.hostname !== "res.cloudinary.com") {
+      return next(new AppError("Image must be uploaded to the approved media storage first", 400));
+    }
+
+    const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: `You are a data extraction assistant. Analyze the screenshot and extract:
+              1. Search Query (Top search bar or context)
+              2. User Intent (Deduce what the user is looking for based on the query)
+              3. Result Title (The main app/video/content name)
+              4. Subtitle (Developer/Artist/Channel)
+              5. Description (Short snippet or intro)
+              6. Suggest a Correct Rating (Navigational, Excellent, Good, Acceptable, Unacceptable).
+              7. Write a short Reason for the rating.
+
+            Return strictly valid JSON with keys: query, intent, title, subtitle, description, rating, reason. Do not wrap in markdown code blocks.`,
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Analyze this image." },
+              { type: "image_url", image_url: { url: parsedImageUrl.toString() } },
+            ],
+          },
+        ],
+        max_tokens: 500,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    const responseData = await openAiResponse.json().catch(() => ({}));
+    if (!openAiResponse.ok) {
+      const message = responseData?.error?.message || "OpenAI image analysis failed";
+      return next(new AppError(message, 502));
+    }
+
+    const content = responseData?.choices?.[0]?.message?.content;
+    if (typeof content !== "string") {
+      return next(new AppError("OpenAI returned an invalid analysis response", 502));
+    }
+
+    res.status(200).json({
+      status: "success",
+      data: JSON.parse(content),
+    });
+  } catch (err) {
+    next(err instanceof SyntaxError ? new AppError("OpenAI returned invalid JSON", 502) : err);
+  }
+};
+
 export const completeTask = async (req, res, next) => {
   try {
     const { id } = req.params;

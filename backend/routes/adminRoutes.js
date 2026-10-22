@@ -418,7 +418,7 @@ Router.get(
             smtpUser: process.env.SMTP_USER || "",
             smtpPassword: process.env.SMTP_PASSWORD || "",
             googleClientId: process.env.GOOGLE_CLIENT_ID || "",
-            openaiApiKey: process.env.OPENAI_API_KEY || "",
+            openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
             cloudinaryCloudName: process.env.CLOUDINARY_CLOUD_NAME || "",
             cloudinaryApiKey: process.env.CLOUDINARY_API_KEY || "",
             cloudinaryApiSecret: process.env.CLOUDINARY_API_SECRET || "",
