@@ -497,9 +497,8 @@ export const getEarningsLeaderboard = async (req, res, next) => {
     const { category } = req.query;
     const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
     const match = { reviewStatus: "approved", isDeleted: { $ne: true }, submittedBy: { $exists: true } };
-    if (typeof category === "string" && category.trim()) match.category = category.trim();
-
     const isAdmin = req.user.role === "admin";
+    if (isAdmin && typeof category === "string" && category.trim()) match.category = category.trim();
     const leaderboard = await Report.aggregate([
       { $match: match },
       {
@@ -539,6 +538,7 @@ export const getEarningsLeaderboard = async (req, res, next) => {
         $project: {
           ...(isAdmin ? { userId: { $toString: "$_id" } } : {}),
           username: "$rater.userName",
+          email: "$rater.email",
           ...(isAdmin ? {
             totalEarned: { $round: ["$totalEarned", 2] },
             totalReports: 1,

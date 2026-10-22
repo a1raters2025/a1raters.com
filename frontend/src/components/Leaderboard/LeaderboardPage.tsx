@@ -63,10 +63,10 @@ export const LeaderboardPage: React.FC = () => {
         >
           <span className="eyebrow"><Trophy size={14} /> Leaderboard</span>
           <h1 className="text-3xl font-bold text-white mb-2">Top Earning Raters</h1>
-          <p className="text-slate-400 text-sm">Ranked by earnings from approved reports, after late penalties.</p>
+          <p className="text-slate-400 text-sm">{isAdmin ? 'Ranked by earnings from approved reports, after late penalties.' : 'Recognizing the top raters.'}</p>
         </motion.section>
 
-        <motion.div
+        {isAdmin && <motion.div
           className="flex gap-2 mb-6 overflow-x-auto pb-2"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -85,7 +85,7 @@ export const LeaderboardPage: React.FC = () => {
               {category}
             </motion.button>
           ))}
-        </motion.div>
+        </motion.div>}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -94,7 +94,7 @@ export const LeaderboardPage: React.FC = () => {
         >
           <GlassCard strong className="overflow-hidden p-0">
             <div className="p-4 border-b border-white/10">
-              <h2 className="text-lg font-semibold text-white">Top 50 by earnings</h2>
+              <h2 className="text-lg font-semibold text-white">{isAdmin ? 'Top 50 by earnings' : 'Top Raters'}</h2>
             </div>
 
             {loading ? (
@@ -124,30 +124,33 @@ export const LeaderboardPage: React.FC = () => {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.02, duration: 0.25 }}
                     >
-                      <div className="w-10 flex items-center justify-center">
+                      {isAdmin && <div className="w-10 flex items-center justify-center">
                         {rank <= 3 ? rankIcons[rank] : <span className="text-sm font-bold text-slate-500">{rank}</span>}
-                      </div>
+                      </div>}
                       <div className="flex-1 flex items-center gap-3 min-w-0">
-                        <div className="w-8 h-8 shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-xs text-white">
+                        {isAdmin && <div className="w-8 h-8 shrink-0 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-xs text-white">
                           {entry.username?.[0]?.toUpperCase() || 'U'}
+                        </div>}
+                        <div className="min-w-0">
+                          <span className={`block truncate font-medium ${isCurrentUser ? 'text-indigo-300' : 'text-white'}`}>
+                            {entry.username}
+                          </span>
+                          <span className="block truncate text-xs text-slate-400">{entry.email}</span>
                         </div>
-                        <span className={`font-medium truncate ${isCurrentUser ? 'text-indigo-300' : 'text-white'}`}>
-                          {entry.username}
-                        </span>
-                        {rank <= 3 && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">Top {rank}</span>}
+                        {isAdmin && rank <= 3 && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold">Top {rank}</span>}
                       </div>
                       {isAdmin && <div className="flex flex-wrap justify-end items-center gap-x-6 gap-y-2 text-sm">
                         <div className="flex items-center gap-1.5">
                           <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
-                          <span className="font-bold text-emerald-300">{formatNaira(entry.totalEarned)}</span>
+                          <span className="font-bold text-emerald-300">{formatNaira(entry.totalEarned ?? 0)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <FileText className="w-3.5 h-3.5 text-slate-500" />
-                          <span className="text-slate-300">{entry.totalReports} reports</span>
+                          <span className="text-slate-300">{entry.totalReports ?? 0} reports</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-slate-500" />
-                          <span className="text-slate-300">{entry.totalHours}h</span>
+                          <span className="text-slate-300">{entry.totalHours ?? 0}h</span>
                         </div>
                       </div>}
                     </motion.div>
@@ -166,9 +169,9 @@ export const LeaderboardPage: React.FC = () => {
         >
           <h3 className="text-lg font-semibold text-white mb-4">Your Progress</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCardGlass label="Earnings" value={currentUserRank ? formatNaira(currentUserRank.totalEarned) : 'Outside top 50'} icon={Trophy} color="amber" />
+            <StatCardGlass label="Earnings" value={currentUserRank ? formatNaira(currentUserRank.totalEarned ?? 0) : 'Outside top 50'} icon={Trophy} color="amber" />
             <StatCardGlass label="Approved Reports" value={currentUserRank?.totalReports ?? '-'} icon={FileText} color="cyan" />
-            <StatCardGlass label="Hours Worked" value={currentUserRank ? `${currentUserRank.totalHours}h` : '-'} icon={BarChart3} color="indigo" />
+            <StatCardGlass label="Hours Worked" value={currentUserRank ? `${currentUserRank.totalHours ?? 0}h` : '-'} icon={BarChart3} color="indigo" />
             <StatCardGlass label="Category" value={selectedCategory} icon={TrendingUp} color="violet" />
           </div>
           {currentUserPosition && (

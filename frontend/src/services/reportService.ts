@@ -9,9 +9,10 @@ export interface MonthlyStatsItem {
 export interface EarningsLeaderboardEntry {
   userId?: string;
   username: string;
-  totalEarned: number;
-  totalReports: number;
-  totalHours: number;
+  email: string;
+  totalEarned?: number;
+  totalReports?: number;
+  totalHours?: number;
 }
 
 export interface RequestReport {
