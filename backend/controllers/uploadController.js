@@ -11,6 +11,26 @@ const isImageUpload = (file) => {
   return IMAGE_TYPES.some((t) => mimeType === t || mimeType === "image");
 };
 
+const getResourceType = (file) => {
+  if (file.resource_type) return file.resource_type;
+  if (file.mimetype?.startsWith("image/")) return "image";
+  if (file.mimetype?.startsWith("video/")) return "video";
+  return "raw";
+};
+
+const parseAudience = (audience) => {
+  if (!audience) return ["user"];
+  try {
+    const parsed = JSON.parse(audience);
+    if (!Array.isArray(parsed) || parsed.some((role) => !["admin", "user", "client"].includes(role))) {
+      throw new Error("Audience must be an array of valid roles");
+    }
+    return parsed;
+  } catch {
+    throw new Error("Invalid audience value");
+  }
+};
+
 export const uploadFile = async (req, res) => {
   try {
     if (!req.file) {
@@ -22,12 +42,12 @@ export const uploadFile = async (req, res) => {
     const file = await File.create({
       name: req.file.originalname,
       url: req.file.path,
-      publicId: req.file.filename,
-      resourceType: req.file.resource_type,
+      publicId: req.file.filename || req.file.public_id || req.file.path,
+      resourceType: getResourceType(req.file),
       title: req.body.title || req.file.originalname,
       description: req.body.description || "",
       category: req.body.category || "Training",
-      audience: req.body.audience ? JSON.parse(req.body.audience) : ["user"],
+      audience: parseAudience(req.body.audience),
       uploadedBy: req.user._id,
     });
 
@@ -62,6 +82,13 @@ export const uploadFile = async (req, res) => {
     }
   } catch (error) {
     console.error(error);
+
+    if (error.message === "Invalid audience value") {
+      return res.status(400).json({
+        status: "fail",
+        message: error.message,
+      });
+    }
 
     res.status(500).json({
       status: "Failed",
