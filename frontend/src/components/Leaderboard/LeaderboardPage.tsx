@@ -4,11 +4,9 @@ import { Trophy, Medal, Award, TrendingUp, Clock, FileText, RefreshCw, BarChart3
 import { authService } from '../../services/authService';
 import { reportService, type EarningsLeaderboardEntry } from '../../services/reportService';
 import { GlassCard } from '../UI/GlassCard';
+import { EVALUATION_CATEGORIES } from '../../constants/reportCategories';
 
-const CATEGORIES = [
-  'App Store', 'Mac App Store', 'Video', 'Video Hint', 'Music', 'Podcast',
-  'AI Assist', 'App Image Accessibility', 'Manual Invoice',
-];
+const CATEGORIES = [...EVALUATION_CATEGORIES, 'Manual Invoice'];
 
 const rankIcons: Record<number, React.ReactNode> = {
   1: <Trophy className="w-5 h-5 text-amber-400" />,

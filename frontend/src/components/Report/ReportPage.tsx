@@ -6,6 +6,7 @@ import { reportService } from '../../services/reportService';
 import { Save, Plus, Trash2, Home } from 'lucide-react';
 import { GlassCard } from '../UI/GlassCard';
 import { getNigeriaDateInputValue } from '../../utils/dateTime';
+import { EVALUATION_CATEGORY_OPTIONS } from '../../constants/reportCategories';
 
 interface ReportEntry {
   id: number;
@@ -21,25 +22,6 @@ interface ReportEntry {
   hourlyRate: number;
   submissionId: string;
 }
-
-interface CategoryOption {
-  name: string;
-  displayName: string;
-  rph: number;
-}
-
-const CATEGORIES: CategoryOption[] = [
-  { name: 'AI Assist', displayName: 'AI Assist - 15 tasks/hour', rph: 15 },
-  { name: 'AI Assist', displayName: 'AI Assist - 20 tasks/hour', rph: 20 },
-  { name: 'App Image Accessibility', displayName: 'App Image Accessibility - 20 tasks/hour', rph: 20 },
-  { name: 'App Store', displayName: 'App Store - 37 tasks/hour', rph: 37 },
-  { name: 'Mac App Store', displayName: 'Mac App Store - 38 tasks/hour', rph: 38 },
-  { name: 'Music', displayName: 'Music - 30 tasks/hour', rph: 30 },
-  { name: 'Music', displayName: 'Music - 35 tasks/hour', rph: 35 },
-  { name: 'Podcast', displayName: 'Podcast - 35 tasks/hour', rph: 35 },
-  { name: 'Video', displayName: 'Video - 25 tasks/hour', rph: 25 },
-  { name: 'Video Hint', displayName: 'Video Hint - 35 tasks/hour', rph: 35 },
-];
 
 const PROXIES = ['US', 'UK', 'Japan', 'China', 'Germany', 'France', 'Canada', 'Australia'];
 const HOURLY_RATES = [2000, 2500, 3000, 3500, 4000];
@@ -74,9 +56,9 @@ export const ReportPage: React.FC = () => {
 
   }, []);
 
-  const selectedCat = category ? CATEGORIES.find((c) => c.displayName === category) : undefined;
+  const selectedCat = category ? EVALUATION_CATEGORY_OPTIONS.find((c) => c.displayName === category) : undefined;
   const calculatedHours = tasksWorked && selectedCat
-    ? (Number(tasksWorked) / selectedCat.rph).toFixed(2)
+    ? (Number(tasksWorked) / selectedCat.tasksPerHour).toFixed(2)
     : '';
 
   useEffect(() => {
@@ -283,7 +265,7 @@ export const ReportPage: React.FC = () => {
                   className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none appearance-none"
                 >
                   <option value="">Select...</option>
-                  {CATEGORIES.map((c) => (
+                  {EVALUATION_CATEGORY_OPTIONS.map((c) => (
                     <option key={c.displayName} value={c.displayName} className="text-gray-900">
                       {c.displayName}
                     </option>

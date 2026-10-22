@@ -5,6 +5,7 @@ import { authService } from '../../services/authService';
 import { reportService, type RequestReport } from '../../services/reportService';
 import { GlassCard } from '../UI/GlassCard';
 import { formatNigeriaDate, formatNigeriaDateTime, isBeforeReportEditDeadline } from '../../utils/dateTime';
+import { EVALUATION_CATEGORIES } from '../../constants/reportCategories';
 import {
   Home,
   Trash2,
@@ -30,16 +31,7 @@ const CATEGORY_DISPLAY: Record<string, string> = {
   'Manual Invoice': 'Manual Invoice',
 };
 
-const REPORT_CATEGORIES = [
-  'AI Assist',
-  'App Image Accessibility',
-  'App Store',
-  'Mac App Store',
-  'Music',
-  'Podcast',
-  'Video',
-  'Video Hint',
-];
+const REPORT_CATEGORIES = [...EVALUATION_CATEGORIES, 'Manual Invoice'];
 const REPORT_PROXIES = ['US', 'UK', 'Japan', 'China', 'Germany', 'France', 'Canada', 'Australia'];
 
 export const RaterReportHistory: React.FC = () => {

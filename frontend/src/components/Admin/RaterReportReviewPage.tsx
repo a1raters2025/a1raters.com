@@ -17,18 +17,12 @@ import {
 } from '../../services/reportService';
 import { GlassCard } from '../UI/GlassCard';
 import { formatNigeriaDate, formatNigeriaDateTime } from '../../utils/dateTime';
+import { EVALUATION_CATEGORIES } from '../../constants/reportCategories';
 
 const CATEGORIES = [
   'All categories',
-  'AI Assist',
-  'App Image Accessibility',
-  'App Store',
-  'Mac App Store',
+  ...EVALUATION_CATEGORIES,
   'Manual Invoice',
-  'Music',
-  'Podcast',
-  'Video',
-  'Video Hint',
 ] as const;
 
 type ReviewFilter = 'pending' | 'all' | 'approved' | 'rejected';
