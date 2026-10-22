@@ -450,7 +450,7 @@ export const RaterReportHistory: React.FC = () => {
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
                         {report.hoursWorked}h (₦{(report.hourlyRate || 2000).toLocaleString()}/hr)
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                         {report.submissionTime ? (
                           <div className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />

@@ -9,6 +9,7 @@ import {
   getInvoicesByRater,
   updateInvoice,
   updateInvoiceStatus,
+  updateInvoiceBonusStatus,
   deleteInvoice,
   getPendingInvoices,
 } from "../controllers/invoiceController.js";
@@ -30,5 +31,6 @@ Router.route("/:id")
   .delete(auth, admin, deleteInvoice);
 
 Router.route("/:id/status").patch(auth, admin, updateInvoiceStatus);
+Router.route("/:id/bonuses/:type/status").patch(auth, admin, updateInvoiceBonusStatus);
 
 export default Router;

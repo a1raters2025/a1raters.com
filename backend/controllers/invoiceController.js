@@ -22,6 +22,9 @@ export const createInvoice = async (req, res, next) => {
       source: "manual",
       reference: undefined,
       payoutReference: undefined,
+      bonuses: Array.isArray(req.body.bonuses)
+        ? req.body.bonuses.map((bonus) => ({ ...bonus, status: "Pending", reviewNote: "", reviewedBy: undefined, reviewedAt: undefined }))
+        : req.body.bonuses,
     };
 
     // Calculate total amount
@@ -232,6 +235,15 @@ export const updateInvoiceStatus = async (req, res, next) => {
     }
 
     let invoice;
+    const settledAmount = () => {
+      let total = Number(existingInvoice.hours || 0) * 2000;
+      for (const item of existingInvoice.items || []) total += Number(item.hours || 0) * 2000;
+      for (const bonus of existingInvoice.bonuses || []) {
+        if (bonus.status === "Approved") total += Number(bonus.amount || 0);
+      }
+      return String(total);
+    };
+    const amountUpdate = status === "Approved" || status === "Paid" ? { amount: settledAmount() } : {};
     if (status === "Approved") {
       invoice = await Invoice.findByIdAndUpdate(
         req.params.id,
@@ -240,6 +252,7 @@ export const updateInvoiceStatus = async (req, res, next) => {
           reviewedBy: req.user._id,
           reviewedAt: new Date(),
           reviewNote: reason.trim(),
+          ...amountUpdate,
         },
         { returnDocument: 'after', runValidators: true }
       ).populate("reviewedBy", "userName email");
@@ -252,6 +265,7 @@ export const updateInvoiceStatus = async (req, res, next) => {
           reviewedAt: new Date(),
           reviewNote: reason.trim(),
           ...(status === "Paid" && { paymentDate: new Date() }),
+          ...amountUpdate,
         },
         { returnDocument: 'after', runValidators: true }
       ).populate("reviewedBy", "userName email");
@@ -303,6 +317,48 @@ export const updateInvoiceStatus = async (req, res, next) => {
       message: `Invoice status updated to ${status}`,
       data: invoice,
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateInvoiceBonusStatus = async (req, res, next) => {
+  try {
+    const { status, reason = "" } = req.body;
+    const type = req.params.type;
+    if (!["Training", "Auditor"].includes(type)) return next(new AppError("Invalid bonus type", 400));
+    if (!["Approved", "Rejected"].includes(status)) return next(new AppError("Bonus status must be Approved or Rejected", 400));
+    if (typeof reason !== "string" || reason.length > 1000) return next(new AppError("Reason must be 1000 characters or fewer", 400));
+    if (status === "Rejected" && !reason.trim()) return next(new AppError("A reason is required to reject a bonus", 400));
+
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) return next(new AppError("Invoice not found", 404));
+    if (invoice.source === "paystack_payout") return next(new AppError("Paystack payout receipts do not contain reviewable bonuses", 409));
+    if (invoice.status === "Paid" || invoice.status === "Reversed") return next(new AppError("Bonuses cannot be reviewed after payment", 409));
+    const bonus = invoice.bonuses.find((item) => item.type === type);
+    if (!bonus) return next(new AppError(`${type} bonus was not submitted`, 404));
+
+    bonus.status = status;
+    bonus.reviewNote = reason.trim();
+    bonus.reviewedBy = req.user._id;
+    bonus.reviewedAt = new Date();
+
+    if (invoice.status === "Approved") {
+      let total = Number(invoice.hours || 0) * 2000;
+      for (const item of invoice.items || []) total += Number(item.hours || 0) * 2000;
+      for (const item of invoice.bonuses || []) if (item.status === "Approved") total += Number(item.amount || 0);
+      invoice.amount = String(total);
+    }
+    await invoice.save();
+
+    emitAdminUpdate({
+      title: `Bonus ${status.toLowerCase()}`,
+      message: `Your ${type.toLowerCase()} bonus on the ${invoice.type.toLowerCase()} was ${status.toLowerCase()}.${reason.trim() ? ` Reason: ${reason.trim()}` : ""}`,
+      type: status === "Approved" ? "success" : "warning",
+      targetUserId: (invoice.userId || invoice.submittedBy)?.toString(),
+      targetRoles: ["admin"],
+    });
+    res.status(200).json({ status: "success", message: `${type} bonus ${status.toLowerCase()}`, data: invoice });
   } catch (err) {
     next(err);
   }

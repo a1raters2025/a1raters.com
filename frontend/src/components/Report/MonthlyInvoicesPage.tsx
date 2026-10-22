@@ -51,9 +51,33 @@ export const MonthlyInvoicesPage: React.FC<{ monthlyOnly?: boolean }> = ({ month
     }
   };
 
+  const updateBonusStatus = async (invoice: Invoice, bonusType: 'Training' | 'Auditor', status: 'Approved' | 'Rejected') => {
+    let reason = '';
+    if (status === 'Rejected') {
+      const enteredReason = window.prompt(`Reason for rejecting the ${bonusType.toLowerCase()} bonus (required):`);
+      if (enteredReason === null) return;
+      reason = enteredReason.trim();
+      if (!reason) {
+        setError('A reason is required to reject a bonus.');
+        return;
+      }
+    }
+    const key = `${invoice.id}-${bonusType}`;
+    setUpdatingStatusId(key);
+    setError('');
+    try {
+      await invoiceService.updateBonusStatus(invoice.id, bonusType, status, reason);
+      await load();
+    } catch (updateError) {
+      setError(updateError instanceof Error ? updateError.message : 'Could not update bonus status.');
+    } finally {
+      setUpdatingStatusId(null);
+    }
+  };
+
   return <main className="page-stack">
     <section className="page-intro"><div><span className="eyebrow"><CalendarDays size={14} /> Payments</span><h1>{monthlyOnly ? 'Monthly Invoices' : 'Invoice History'}</h1><p>{monthlyOnly ? 'Review your monthly invoice submissions and their payment status.' : 'Review all your invoice and dispute submissions.'}</p></div></section>
     {error && !loading && <p role="alert" className="text-sm text-rose-300">{error}</p>}
-    {loading ? <p className="text-slate-400">Loading invoices...</p> : invoices.length === 0 ? <GlassCard className="p-8 text-center"><Receipt className="mx-auto mb-3 text-slate-400"/><h2 className="text-lg font-semibold text-white">No {monthlyOnly ? 'monthly invoices' : 'invoice history'} yet</h2><p className="mt-1 text-sm text-slate-400">Submissions will appear here.</p></GlassCard> : <section className="grid gap-3">{invoices.map(invoice => <GlassCard key={invoice._id || invoice.id} className="flex flex-wrap items-center justify-between gap-4 p-5"><div><h2 className="font-semibold text-white">{invoice.month || invoice.type || new Date(invoice.date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</h2><p className="mt-1 text-sm text-slate-400">{isAdmin ? `${invoice.raterName} - ` : ''}{new Date(invoice.date).toLocaleDateString()}</p></div><div className="text-right"><p className="font-semibold text-white">NGN {Number(invoice.amount || 0).toLocaleString('en-NG')}</p>{isAdmin && invoice.source !== 'paystack_payout' ? <label className="sr-only" htmlFor={`invoice-status-${invoice.id}`}>Payment status for {invoice.raterName}</label> : null}{isAdmin && invoice.source !== 'paystack_payout' ? <select id={`invoice-status-${invoice.id}`} value={invoice.status} disabled={updatingStatusId === String(invoice.id)} onChange={event => void updateStatus(invoice, event.target.value as Invoice['status'])} className="mt-2 rounded-md border border-white/15 bg-slate-800 px-3 py-1.5 text-sm text-white disabled:opacity-50"><option>Pending</option><option>Approved</option><option>Rejected</option><option>Resolved</option><option>Paid</option><option>Reversed</option></select> : <span className="text-sm text-slate-300">{invoice.status}</span>}</div></GlassCard>)}</section>}
+    {loading ? <p className="text-slate-400">Loading invoices...</p> : invoices.length === 0 ? <GlassCard className="p-8 text-center"><Receipt className="mx-auto mb-3 text-slate-400"/><h2 className="text-lg font-semibold text-white">No {monthlyOnly ? 'monthly invoices' : 'invoice history'} yet</h2><p className="mt-1 text-sm text-slate-400">Submissions will appear here.</p></GlassCard> : <section className="grid gap-3">{invoices.map(invoice => <GlassCard key={invoice._id || invoice.id} className="flex flex-wrap items-center justify-between gap-4 p-5"><div className="min-w-0 flex-1"><h2 className="font-semibold text-white">{invoice.month || invoice.type || new Date(invoice.date).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</h2><p className="mt-1 text-sm text-slate-400">{isAdmin ? `${invoice.raterName} - ` : ''}{new Date(invoice.date).toLocaleDateString()}</p>{invoice.bonuses && invoice.bonuses.length > 0 && <div className="mt-3 space-y-2">{invoice.bonuses.map(bonus => { const bonusStatus = bonus.status || 'Pending'; const key = `${invoice.id}-${bonus.type}`; return <div key={bonus.type} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm"><span className="text-slate-200">{bonus.type} bonus · NGN {bonus.amount.toLocaleString('en-NG')}</span><div className="flex items-center gap-2"><span className={`rounded-full px-2 py-0.5 text-xs ${bonusStatus === 'Approved' ? 'bg-emerald-500/15 text-emerald-300' : bonusStatus === 'Rejected' ? 'bg-rose-500/15 text-rose-300' : 'bg-amber-500/15 text-amber-200'}`}>{bonusStatus}</span>{isAdmin && invoice.source !== 'paystack_payout' && invoice.status !== 'Paid' && invoice.status !== 'Reversed' && bonusStatus === 'Pending' && <><button disabled={updatingStatusId === key} onClick={() => void updateBonusStatus(invoice, bonus.type, 'Approved')} className="rounded bg-emerald-500/15 px-2 py-1 text-xs text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-50">Approve</button><button disabled={updatingStatusId === key} onClick={() => void updateBonusStatus(invoice, bonus.type, 'Rejected')} className="rounded bg-rose-500/15 px-2 py-1 text-xs text-rose-200 hover:bg-rose-500/25 disabled:opacity-50">Reject</button></>}</div>{bonus.reviewNote && <p className="w-full text-xs text-slate-400">{bonus.reviewNote}</p>}</div>; })}</div>}</div><div className="text-right"><p className="font-semibold text-white">NGN {Number(invoice.amount || 0).toLocaleString('en-NG')}</p>{isAdmin && invoice.source !== 'paystack_payout' ? <label className="sr-only" htmlFor={`invoice-status-${invoice.id}`}>Payment status for {invoice.raterName}</label> : null}{isAdmin && invoice.source !== 'paystack_payout' ? <select id={`invoice-status-${invoice.id}`} value={invoice.status} disabled={updatingStatusId === String(invoice.id)} onChange={event => void updateStatus(invoice, event.target.value as Invoice['status'])} className="mt-2 rounded-md border border-white/15 bg-slate-800 px-3 py-1.5 text-sm text-white disabled:opacity-50"><option>Pending</option><option>Approved</option><option>Rejected</option><option>Resolved</option><option>Paid</option><option>Reversed</option></select> : <span className="text-sm text-slate-300">{invoice.status}</span>}</div></GlassCard>)}</section>}
   </main>;
 };

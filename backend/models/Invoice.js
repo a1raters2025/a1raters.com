@@ -11,6 +11,14 @@ const bonusSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    status: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Approved",
+    },
+    reviewNote: { type: String, trim: true, maxlength: 1000, default: "" },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    reviewedAt: { type: Date },
   },
   { _id: false }
 );

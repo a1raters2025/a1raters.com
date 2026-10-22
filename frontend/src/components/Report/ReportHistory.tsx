@@ -812,7 +812,7 @@ export const ReportHistory: React.FC = () => {
                                                         onChange={e => setAddTrainingBonus(e.target.checked)}
                                                         className="rounded text-blue-600 focus:ring-blue-500"
                                                     />
-                                                    <span className="text-sm">Training (₦ 10k)</span>
+                                                    <span className="text-sm text-gray-900">Training (₦ 10k)</span>
                                                 </label>
                                                 <label className="flex items-center space-x-2 cursor-pointer bg-gray-50 px-3 py-2 rounded border hover:border-blue-300">
                                                     <input
@@ -821,7 +821,7 @@ export const ReportHistory: React.FC = () => {
                                                         onChange={e => setAddAuditorBonus(e.target.checked)}
                                                         className="rounded text-blue-600 focus:ring-blue-500"
                                                     />
-                                                    <span className="text-sm">Auditor (₦ 8k)</span>
+                                                    <span className="text-sm text-gray-900">Auditor (₦ 8k)</span>
                                                 </label>
                                             </div>
                                         </div>
@@ -1066,8 +1066,8 @@ export const ReportHistory: React.FC = () => {
                                                     <span className="text-xs font-bold text-gray-500 uppercase">Bonuses:</span>
                                                     <div className="flex gap-2 mt-1">
                                                         {inv.bonuses.map((b, idx) => (
-                                                            <span key={idx} className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                                                                {b.type} (+₦{b.amount.toLocaleString()})
+                                                            <span key={idx} className={`text-xs px-2 py-1 rounded ${b.status === 'Approved' ? 'bg-green-100 text-green-800' : b.status === 'Rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
+                                                                {b.type} (+₦{b.amount.toLocaleString()}) · {b.status || 'Pending'}{b.reviewNote ? `: ${b.reviewNote}` : ''}
                                                             </span>
                                                         ))}
                                                     </div>
@@ -1315,8 +1315,8 @@ export const ReportHistory: React.FC = () => {
                                                                             <span className="text-xs font-bold text-gray-500 uppercase">Bonuses:</span>
                                                                             <div className="flex gap-2 mt-1">
                                                                                 {invoice.bonuses.map((b, idx) => (
-                                                                                    <span key={idx} className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                                                                                        {b.type} (+₦{b.amount.toLocaleString()})
+                                                                                    <span key={idx} className={`text-xs px-2 py-1 rounded ${b.status === 'Approved' ? 'bg-green-100 text-green-800' : b.status === 'Rejected' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
+                                                                                        {b.type} (+₦{b.amount.toLocaleString()}) · {b.status || 'Pending'}{b.reviewNote ? `: ${b.reviewNote}` : ''}
                                                                                     </span>
                                                                                 ))}
                                                                             </div>
@@ -1412,7 +1412,7 @@ export const ReportHistory: React.FC = () => {
                                                         ) : report.email}
                                                     </td>
 
-                                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                    <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                                                         <div className="flex items-center">
                                                             {report.category} ({report.proxy})
                                                             {report.status === 'Restricted' && (

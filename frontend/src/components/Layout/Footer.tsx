@@ -170,6 +170,7 @@ export const Footer: React.FC = () => {
         </div>
         <span className="flex items-center gap-1">
           Professional Rating Platform © {currentYear} A1 Raters
+          <small>+2349035570702</small>
         </span>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <Shield size={12} /> Protected & encrypted

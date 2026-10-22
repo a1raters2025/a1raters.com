@@ -14,6 +14,9 @@ export interface ManualReportItem {
 export interface BonusItem {
     type: 'Training' | 'Auditor';
     amount: number;
+    status?: 'Pending' | 'Approved' | 'Rejected';
+    reviewNote?: string;
+    reviewedAt?: string;
 }
 
 export interface BankDetails {
@@ -216,6 +219,19 @@ export const invoiceService = {
         );
         if (response.status !== 'success' || !response.data) {
             throw new Error(response.message || 'Failed to update invoice status');
+        }
+        return normalizeInvoice(response.data);
+    },
+
+    async updateBonusStatus(id: string | number, type: BonusItem['type'], status: 'Approved' | 'Rejected', reason = ''): Promise<Invoice> {
+        const invoiceId = typeof id === 'string' && !id.startsWith('local_') ? id : null;
+        if (!invoiceId) throw new Error('Bonus review requires a server-saved invoice');
+        const response = await apiClient.patch<{ status: string; message?: string; data: Invoice }>(
+            `/invoices/${invoiceId}/bonuses/${type}/status`,
+            { status, reason },
+        );
+        if (response.status !== 'success' || !response.data) {
+            throw new Error(response.message || 'Failed to review bonus');
         }
         return normalizeInvoice(response.data);
     },
