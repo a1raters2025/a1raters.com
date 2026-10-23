@@ -66,9 +66,12 @@ export type GoogleRegisterResponse = LoginResponse;
 const REPORT_EMAILS_KEY = 'a1_raters_report_emails';
 const TOKEN_KEY = 'a1_raters_token';
 const USER_KEY = 'a1_raters_user';
+const SESSION_EXPIRES_AT_KEY = 'a1_raters_session_expires_at';
+const SESSION_DURATION_MS = 10_000;
 let currentUser: User | null = null;
 let authInitialized = false;
 let authInitPromise: Promise<void> | null = null;
+let logoutTimer: ReturnType<typeof setTimeout> | null = null;
 
 const getStoredToken = (): string | null => {
     return localStorage.getItem(TOKEN_KEY);
@@ -79,9 +82,28 @@ const setStoredToken = (token: string) => {
     apiClient.setToken(token);
 };
 
+const startSessionExpiry = () => {
+    const expiresAt = Date.now() + SESSION_DURATION_MS;
+    localStorage.setItem(SESSION_EXPIRES_AT_KEY, String(expiresAt));
+    scheduleSessionLogout(expiresAt);
+};
+
+const scheduleSessionLogout = (expiresAt: number) => {
+    if (logoutTimer) clearTimeout(logoutTimer);
+    const remaining = expiresAt - Date.now();
+    if (remaining <= 0) {
+        void authService.logout();
+        return;
+    }
+    logoutTimer = setTimeout(() => { void authService.logout(); }, remaining);
+};
+
 const clearStoredToken = () => {
+    if (logoutTimer) clearTimeout(logoutTimer);
+    logoutTimer = null;
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(SESSION_EXPIRES_AT_KEY);
     apiClient.setToken(null);
 };
 
@@ -106,6 +128,14 @@ const initializeAuth = async () => {
         const storedUser = getStoredUser();
 
         if (token) {
+            const expiresAt = Number(localStorage.getItem(SESSION_EXPIRES_AT_KEY));
+            if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+                clearStoredToken();
+                currentUser = null;
+                authInitialized = true;
+                return;
+            }
+            scheduleSessionLogout(expiresAt);
             apiClient.setToken(token);
             if (storedUser) {
                 currentUser = storedUser;
@@ -161,6 +191,7 @@ export const authService = {
         delete (user as User & { password?: string }).password;
         currentUser = user;
         setStoredToken(response.token);
+        startSessionExpiry();
         setStoredUser(user);
         return user;
     },
@@ -219,6 +250,7 @@ export const authService = {
         delete (user as User & { password?: string }).password;
         currentUser = user;
         setStoredToken(response.token);
+        startSessionExpiry();
         setStoredUser(user);
         return user;
     },
