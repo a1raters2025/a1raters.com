@@ -147,7 +147,7 @@ export const registerWithGoogle = async (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'none',
-            maxAge: 10 * 1000,
+            maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
         const safeUser = user.toObject();
@@ -344,7 +344,7 @@ export const loginUser = async (req, res) => {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "none",
-            maxAge: 10 * 1000
+            maxAge: 7 * 24 * 60 * 60 * 1000  //changing 7days to milliseconds
 
         });
 
