@@ -1,17 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, LogOut, RefreshCw } from 'lucide-react';
+import { LogOut, RefreshCw } from 'lucide-react';
 import { authService } from '../../services/authService';
-import { clientService, type ClientDashboardResponse, type ClientReport } from '../../services/clientService';
+import { clientService, type ClientDashboardResponse } from '../../services/clientService';
 import { GlassCard } from '../UI/GlassCard';
-import { notificationService, type AppNotification } from '../../services/notificationService';
-import { formatNigeriaDateTime } from '../../utils/dateTime';
 
 export const ClientDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [data, setData] = useState<ClientDashboardResponse['data']>({ totalHours: 0, categoryHours: [], projectCategories: [] });
-  const [notifications, setNotifications] = useState<AppNotification[]>(notificationService.getAll());
-  const [reports, setReports] = useState<ClientReport[]>([]);
+  const [data, setData] = useState<ClientDashboardResponse['data']>({ dailyTotals: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -25,15 +21,6 @@ export const ClientDashboard: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Unable to load hours worked.');
     } finally {
       setLoading(false);
-    }
-  }, []);
-
-  const loadReports = useCallback(async () => {
-    try {
-      const response = await clientService.getReports();
-      setReports(response.data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Unable to load reports.');
     }
   }, []);
 
@@ -55,16 +42,7 @@ export const ClientDashboard: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => { void loadReports(); }, [loadReports]);
-
-  useEffect(() => {
-    const unsubscribe = notificationService.subscribe(setNotifications);
-    notificationService.connect();
-    return unsubscribe;
-  }, []);
-
   const handleLogout = async () => {
-    notificationService.disconnect();
     await authService.logout();
     navigate('/login');
   };
@@ -74,9 +52,9 @@ export const ClientDashboard: React.FC = () => {
       <div className="mx-auto max-w-3xl">
         <header className="mb-8 flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-cyan-400">Client hours</p>
-            <h1 className="mt-2 text-3xl font-bold">Hours in Your Projects</h1>
-            <p className="mt-2 text-sm text-slate-400">Hours reported by raters assigned to work in your project categories.</p>
+            <p className="text-xs font-bold uppercase tracking-[0.25em] text-cyan-400">Client activity</p>
+            <h1 className="mt-2 text-3xl font-bold">Daily Task Summary</h1>
+            <p className="mt-2 text-sm text-slate-400">Daily task and hour totals from raters working on your tasks.</p>
           </div>
           <button
             onClick={handleLogout}
@@ -86,21 +64,9 @@ export const ClientDashboard: React.FC = () => {
           </button>
         </header>
 
-        <GlassCard className="mb-5 p-6" hover={false}>
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-500/10">
-              <Clock className="h-6 w-6 text-cyan-300" />
-            </div>
-            <div>
-              <p className="text-sm text-slate-400">Total hours worked</p>
-              <p className="text-3xl font-bold text-white">{data.totalHours} hours</p>
-            </div>
-          </div>
-        </GlassCard>
-
         <GlassCard className="p-6" hover={false}>
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-white">Hours by project and rater</h2>
+            <h2 className="text-lg font-bold text-white">Daily totals</h2>
             <button
               type="button"
               onClick={() => void loadHours()}
@@ -115,57 +81,22 @@ export const ClientDashboard: React.FC = () => {
           {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
           {loading ? (
             <p className="text-sm text-slate-400">Loading hours...</p>
-          ) : data.categoryHours.length ? (
+          ) : data.dailyTotals.length ? (
             <ul className="divide-y divide-white/10">
-              {data.categoryHours.map(({ category, raterName, totalHours }) => (
-                <li key={`${category}-${raterName}`} className="flex items-center justify-between gap-4 py-4">
-                  <span className="font-medium text-slate-200">
-                    {raterName}
-                    <span className="block text-xs font-normal text-slate-400">{category}</span>
-                  </span>
-                  <span className="font-bold text-cyan-300">{totalHours} hours</span>
+              {data.dailyTotals.map(({ date, totalTasks, totalHours }) => (
+                <li key={date} className="flex items-center justify-between gap-4 py-4">
+                  <span className="font-medium text-slate-200">{date}</span>
+                  <span className="text-right font-bold text-cyan-300">{totalTasks} tasks<span className="block text-xs font-normal text-slate-400">{totalHours} hours</span></span>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="text-sm text-slate-400">
-              {data.projectCategories.length
-                ? 'No hours have been reported yet for raters assigned to your projects.'
-                : 'No project categories are assigned to your account yet. Please contact an administrator.'}
+              No task activity has been reported yet.
             </p>
           )}
         </GlassCard>
 
-        <GlassCard className="mt-5 p-6" hover={false}>
-          <h2 className="mb-4 text-lg font-bold text-white">Rater reports</h2>
-          {reports.length ? (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="text-xs uppercase text-slate-400"><tr><th className="pb-3">Rater</th><th className="pb-3">Project</th><th className="pb-3">Date</th><th className="pb-3">Tasks</th><th className="pb-3">Hours</th><th className="pb-3">Status</th></tr></thead>
-                <tbody className="divide-y divide-white/10">{reports.map((report) => (
-                  <tr key={report._id}>
-                    <td className="py-3 text-slate-200">{report.raterName}</td><td className="py-3 text-slate-300">{report.profileName}<span className="block text-xs text-slate-500">{report.category}</span></td><td className="py-3 text-slate-300">{formatNigeriaDateTime(report.date)}</td><td className="py-3 text-slate-300">{report.tasksWorked}</td><td className="py-3 text-cyan-300">{report.hoursWorked}</td><td className="py-3 capitalize text-slate-300">{report.reviewStatus}</td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          ) : <p className="text-sm text-slate-400">No reports are available for your tasks yet.</p>}
-        </GlassCard>
-
-        {notifications.length > 0 && (
-          <GlassCard className="mt-5 p-6" hover={false}>
-            <h2 className="mb-3 text-lg font-bold text-white">Recent notifications</h2>
-            <ul className="space-y-3">
-              {notifications.slice(0, 5).map((notification) => (
-                <li key={notification.id} className="border-b border-white/10 pb-3 last:border-0">
-                  <p className="font-semibold text-slate-100">{notification.title}</p>
-                  <p className="mt-1 text-sm text-slate-400">{notification.message}</p>
-                  <time className="mt-1 block text-xs text-slate-500">{formatNigeriaDateTime(notification.createdAt)}</time>
-                </li>
-              ))}
-            </ul>
-          </GlassCard>
-        )}
       </div>
     </main>
   );

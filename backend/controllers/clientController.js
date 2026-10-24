@@ -15,7 +15,7 @@ export const getClientDashboard = async (req, res, next) => {
             ...(task.assignedRaters || []),
             ...(task.currentRater ? [task.currentRater] : []),
         ]).map((id) => id.toString()))];
-        const categoryHours = projectCategories.length && raterIds.length
+        const dailyTotals = projectCategories.length && raterIds.length
             ? await Report.aggregate([
                 {
                     $match: {
@@ -26,51 +26,32 @@ export const getClientDashboard = async (req, res, next) => {
                 },
                 {
                     $group: {
-                        _id: { category: "$category", raterName: "$raterName" },
+                        _id: { $dateToString: { format: "%Y-%m-%d", date: "$date", timezone: "Africa/Lagos" } },
                         totalHours: { $sum: { $toDouble: "$hoursWorked" } },
+                        totalTasks: { $sum: { $convert: { input: "$tasksWorked", to: "double", onError: 0, onNull: 0 } } },
                     },
                 },
                 {
                     $project: {
                         _id: 0,
-                        category: "$_id.category",
-                        raterName: "$_id.raterName",
+                        date: "$_id",
+                        totalTasks: { $round: ["$totalTasks", 0] },
                         totalHours: { $round: ["$totalHours", 2] },
                     },
                 },
-                { $sort: { category: 1, raterName: 1 } },
+                { $sort: { date: -1 } },
             ])
             : [];
-        const totalHours = categoryHours.reduce((sum, entry) => sum + entry.totalHours, 0);
-
         res.status(200).json({
             status: "success",
-            message: "Category hours retrieved successfully",
+            message: "Daily task and hour totals retrieved successfully",
             data: {
-                totalHours: Number(totalHours.toFixed(2)),
-                categoryHours,
-                projectCategories,
+                dailyTotals,
             },
         });
     } catch (err) {
         next(err);
     }
-};
-
-export const getClientReports = async (req, res, next) => {
-    try {
-        const tasks = await Task.find({ client: req.user._id }).select("category assignedRaters currentRater").lean();
-        const raterIds = [...new Set(tasks.flatMap((task) => [
-            ...(task.assignedRaters || []), ...(task.currentRater ? [task.currentRater] : []),
-        ]).map((id) => id.toString()))];
-        const categories = [...new Set(tasks.map((task) => task.category))];
-        const reports = raterIds.length && categories.length
-            ? await Report.find({ submittedBy: { $in: raterIds }, category: { $in: categories }, isDeleted: { $ne: true } })
-                .select("raterName profileName category tasksWorked hoursWorked date status reviewStatus description")
-                .sort({ date: -1, createdAt: -1 }).lean()
-            : [];
-        res.status(200).json({ status: "success", message: "Client reports retrieved successfully", data: reports });
-    } catch (err) { next(err); }
 };
 
 export const getReportsByEmail = async (req, res, next) => {
