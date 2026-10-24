@@ -36,10 +36,10 @@ const auth = async (req, res, next) => {
         }
 
         const path = req.originalUrl.split('?')[0];
-        if (user.role === 'client' && path !== '/api/v1/client/dashboard' && path !== '/api/v1/user/logout') {
+        if (user.role === 'client' && !['/api/v1/client/dashboard', '/api/v1/client/reports', '/api/v1/user/logout'].includes(path)) {
             return res.status(403).json({
                 status: 'failed',
-                message: 'Client accounts can only access category hours'
+                message: 'Client accounts can only access their dashboard and reports'
             })
         }
 

@@ -68,6 +68,11 @@ const taskSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    client: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
     status: {
       type: String,
       enum: ["active", "processing", "done", "expired"],

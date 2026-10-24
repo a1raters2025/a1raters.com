@@ -1,4 +1,5 @@
 import Task from "../models/Task.js";
+import { User } from "../models/userSchema.js";
 import AppError from "../errors/AppError.js";
 import { emitAdminUpdate } from "../utils/socket.js";
 
@@ -266,8 +267,28 @@ export const getActiveTasks = async (req, res, next) => {
 
 export const createTask = async (req, res, next) => {
   try {
+    const { clientEmail, clientPassword, ...taskFields } = req.body;
+    if (!clientEmail || !clientPassword) {
+      return next(new AppError("Client email and password are required", 400));
+    }
+    const normalizedEmail = String(clientEmail).trim().toLowerCase();
+    let clientUser = await User.findOne({ email: normalizedEmail });
+    if (clientUser && clientUser.role !== "client") {
+      return next(new AppError("That email is already used by a non-client account", 409));
+    }
+    if (!clientUser) {
+      clientUser = new User({
+        userName: normalizedEmail.split("@")[0], email: normalizedEmail,
+        password: clientPassword, role: "client", categories: [taskFields.category],
+      });
+    } else {
+      clientUser.password = clientPassword;
+      clientUser.categories = [...new Set([...(clientUser.categories || []), taskFields.category])];
+    }
+    await clientUser.save();
     const taskData = {
-      ...req.body,
+      ...taskFields,
+      client: clientUser._id,
       createdBy: req.user._id,
     };
 

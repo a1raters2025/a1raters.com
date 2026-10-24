@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, LogOut, RefreshCw } from 'lucide-react';
 import { authService } from '../../services/authService';
-import { clientService, type ClientDashboardResponse } from '../../services/clientService';
+import { clientService, type ClientDashboardResponse, type ClientReport } from '../../services/clientService';
 import { GlassCard } from '../UI/GlassCard';
 import { notificationService, type AppNotification } from '../../services/notificationService';
 import { formatNigeriaDateTime } from '../../utils/dateTime';
@@ -11,6 +11,7 @@ export const ClientDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<ClientDashboardResponse['data']>({ totalHours: 0, categoryHours: [], projectCategories: [] });
   const [notifications, setNotifications] = useState<AppNotification[]>(notificationService.getAll());
+  const [reports, setReports] = useState<ClientReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -24,6 +25,15 @@ export const ClientDashboard: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Unable to load hours worked.');
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  const loadReports = useCallback(async () => {
+    try {
+      const response = await clientService.getReports();
+      setReports(response.data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Unable to load reports.');
     }
   }, []);
 
@@ -44,6 +54,8 @@ export const ClientDashboard: React.FC = () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => { void loadReports(); }, [loadReports]);
 
   useEffect(() => {
     const unsubscribe = notificationService.subscribe(setNotifications);
@@ -122,6 +134,22 @@ export const ClientDashboard: React.FC = () => {
                 : 'No project categories are assigned to your account yet. Please contact an administrator.'}
             </p>
           )}
+        </GlassCard>
+
+        <GlassCard className="mt-5 p-6" hover={false}>
+          <h2 className="mb-4 text-lg font-bold text-white">Rater reports</h2>
+          {reports.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead className="text-xs uppercase text-slate-400"><tr><th className="pb-3">Rater</th><th className="pb-3">Project</th><th className="pb-3">Date</th><th className="pb-3">Tasks</th><th className="pb-3">Hours</th><th className="pb-3">Status</th></tr></thead>
+                <tbody className="divide-y divide-white/10">{reports.map((report) => (
+                  <tr key={report._id}>
+                    <td className="py-3 text-slate-200">{report.raterName}</td><td className="py-3 text-slate-300">{report.profileName}<span className="block text-xs text-slate-500">{report.category}</span></td><td className="py-3 text-slate-300">{formatNigeriaDateTime(report.date)}</td><td className="py-3 text-slate-300">{report.tasksWorked}</td><td className="py-3 text-cyan-300">{report.hoursWorked}</td><td className="py-3 capitalize text-slate-300">{report.reviewStatus}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          ) : <p className="text-sm text-slate-400">No reports are available for your tasks yet.</p>}
         </GlassCard>
 
         {notifications.length > 0 && (

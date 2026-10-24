@@ -379,15 +379,16 @@ export const dataService = {
         return ['Navigational', 'Excellent', 'Good', 'Acceptable', 'Unacceptable', 'Perfect'];
     },
 
-    async saveTask(newTask: TaskData): Promise<TaskData> {
+    async saveTask(newTask: TaskData, clientCredentials?: { clientEmail: string; clientPassword: string }): Promise<TaskData> {
         try {
-            const response = await apiClient.post<{ status: string; message?: string; data: TaskData }>('/tasks', newTask);
+            const response = await apiClient.post<{ status: string; message?: string; data: TaskData }>('/tasks', { ...newTask, ...clientCredentials });
             if (response.status === 'success' && response.data) {
                 return normalizeTask(response.data);
             }
             throw new Error(response.message || 'Failed to create task');
         } catch (error) {
             console.error('Backend save failed, saving locally:', error);
+            if (clientCredentials) throw error;
             
             const stored = localStorage.getItem(TASKS_STORAGE_KEY);
             const customTasks: TaskData[] = stored ? JSON.parse(stored) : [];

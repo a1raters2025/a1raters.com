@@ -17,6 +17,8 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
   const [subCategory, setSubCategory] = useState('App Store Search Result');
   const [mode, setMode] = useState<'practice' | 'test'>('practice');
   const [deadlineAt, setDeadlineAt] = useState('');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientPassword, setClientPassword] = useState('');
 
   const [formState, setFormState] = useState({
     query: '',
@@ -104,6 +106,11 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       setParsingStatus('error');
       return;
     }
+    if (!clientEmail.trim() || clientPassword.length < 6) {
+      setErrorMessage('Enter a client email and a password with at least 6 characters.');
+      setParsingStatus('error');
+      return;
+    }
 
     try {
       const deadline = deadlineAt ? new Date(deadlineAt) : null;
@@ -143,7 +150,8 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         deadlineAt: deadline?.toISOString() || null,
       };
 
-      await dataService.saveTask(newTask);
+      await dataService.saveTask(newTask, { clientEmail: clientEmail.trim().toLowerCase(), clientPassword });
+      setClientPassword('');
 
       setParsingStatus('success');
       setTimeout(() => setParsingStatus('idle'), 3000);
@@ -151,7 +159,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     } catch (e) {
       console.error(e);
       setParsingStatus('error');
-      setErrorMessage('Failed to save task.');
+      setErrorMessage(e instanceof Error ? e.message : 'Failed to save task.');
     }
   };
 
@@ -218,6 +226,13 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     <option value="practice">Practice</option>
                     <option value="test">Test</option>
                   </select>
+                </div>
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold text-slate-200">Client sign-in</h3>
+                  <label className="mb-1 block text-xs text-slate-400">Client email</label>
+                  <input type="email" required value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} className="mb-3 w-full rounded-xl border border-white/10 bg-white/5 p-2.5 text-sm text-white outline-none focus:border-indigo-400" placeholder="client@example.com" />
+                  <label className="mb-1 block text-xs text-slate-400">Client password</label>
+                  <input type="password" required minLength={6} value={clientPassword} onChange={(e) => setClientPassword(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/5 p-2.5 text-sm text-white outline-none focus:border-indigo-400" placeholder="Uppercase, lowercase, number and symbol" />
                 </div>
               </div>
             </GlassCard>

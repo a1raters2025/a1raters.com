@@ -7,12 +7,10 @@ const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, ne
 
 export const getClientDashboard = async (req, res, next) => {
     try {
-        const projectCategories = Array.isArray(req.user.categories) ? req.user.categories : [];
-        const clientTasks = projectCategories.length
-            ? await Task.find({ category: { $in: projectCategories } })
-                .select("category assignedRaters currentRater")
-                .lean()
-            : [];
+        const clientTasks = await Task.find({ client: req.user._id })
+            .select("category assignedRaters currentRater")
+            .lean();
+        const projectCategories = [...new Set(clientTasks.map((task) => task.category))];
         const raterIds = [...new Set(clientTasks.flatMap((task) => [
             ...(task.assignedRaters || []),
             ...(task.currentRater ? [task.currentRater] : []),
@@ -57,6 +55,22 @@ export const getClientDashboard = async (req, res, next) => {
     } catch (err) {
         next(err);
     }
+};
+
+export const getClientReports = async (req, res, next) => {
+    try {
+        const tasks = await Task.find({ client: req.user._id }).select("category assignedRaters currentRater").lean();
+        const raterIds = [...new Set(tasks.flatMap((task) => [
+            ...(task.assignedRaters || []), ...(task.currentRater ? [task.currentRater] : []),
+        ]).map((id) => id.toString()))];
+        const categories = [...new Set(tasks.map((task) => task.category))];
+        const reports = raterIds.length && categories.length
+            ? await Report.find({ submittedBy: { $in: raterIds }, category: { $in: categories }, isDeleted: { $ne: true } })
+                .select("raterName profileName category tasksWorked hoursWorked date status reviewStatus description")
+                .sort({ date: -1, createdAt: -1 }).lean()
+            : [];
+        res.status(200).json({ status: "success", message: "Client reports retrieved successfully", data: reports });
+    } catch (err) { next(err); }
 };
 
 export const getReportsByEmail = async (req, res, next) => {
