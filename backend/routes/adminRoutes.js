@@ -277,6 +277,34 @@ Router.get(
     })
 );
 
+Router.delete(
+    "/activity",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const result = await ActivityLog.deleteMany({});
+        res.status(200).json({
+            status: "success",
+            message: `Deleted ${result.deletedCount} activity log entry(ies)`,
+            data: { deletedCount: result.deletedCount },
+        });
+    })
+);
+
+Router.delete(
+    "/users/unapproved",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const result = await User.deleteMany({ isApproved: false, role: { $ne: "admin" } });
+        res.status(200).json({
+            status: "success",
+            message: `Removed ${result.deletedCount} unapproved user(s)`,
+            data: { deletedCount: result.deletedCount },
+        });
+    })
+);
+
 Router.get(
     "/activity/user/:userId",
     auth,

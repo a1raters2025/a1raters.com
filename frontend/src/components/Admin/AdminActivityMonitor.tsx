@@ -18,6 +18,7 @@ import {
   RefreshCw,
   BarChart3,
   Eye,
+  Trash2,
 } from 'lucide-react';
 
 const ACTION_ICONS: Record<string, React.ReactNode> = {
@@ -70,6 +71,7 @@ export const AdminActivityMonitor: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [isClearing, setIsClearing] = useState(false);
 
   const [sessions, setSessions] = useState<ActiveSession[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
@@ -159,6 +161,26 @@ export const AdminActivityMonitor: React.FC = () => {
     void fetchActivityLogs();
     void fetchSessions();
     void fetchStats();
+  };
+
+  const handleClearLogs = async () => {
+    if (!window.confirm('This will permanently delete ALL activity logs. This action cannot be undone. Continue?')) return;
+    setIsClearing(true);
+    try {
+      const result = await adminService.clearActivityLog();
+      if (result.status === 'success') {
+        void fetchActivityLogs();
+        void fetchStats();
+        alert(`Cleared ${result.data.deletedCount} activity log entry(ies).`);
+      } else {
+        alert(result.message || 'Failed to clear activity logs.');
+      }
+    } catch (err) {
+      alert('Failed to clear activity logs.');
+      console.error('Failed to clear activity logs:', err);
+    } finally {
+      setIsClearing(false);
+    }
   };
 
   const statCards = stats ? [
@@ -274,9 +296,19 @@ export const AdminActivityMonitor: React.FC = () => {
 
           <GlassCard className="overflow-hidden" delay={0.2} hover={false}>
             <div className="px-4 sm:px-6 py-4 border-b border-white/5 flex justify-between items-center">
-              <h3 className="text-lg font-bold text-white">
-                {totalItems} activities found
-              </h3>
+              <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+                <h3 className="text-lg font-bold text-white">
+                  {totalItems} activities found
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleClearLogs}
+                  disabled={isClearing || totalItems === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-300 transition hover:bg-red-500/20 disabled:opacity-50"
+                >
+                  <Trash2 size={14} /> Clear all logs
+                </button>
+              </div>
               {totalPages > 1 && (
                 <div className="flex gap-2">
                   <button

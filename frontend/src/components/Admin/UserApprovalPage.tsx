@@ -22,6 +22,7 @@ import {
   Users,
   Wallet,
   X,
+  Trash2,
 } from 'lucide-react';
 
 type ApprovalTab = 'accounts' | 'payouts';
@@ -72,6 +73,7 @@ export const UserApprovalPage: React.FC = () => {
   const [rejectingUserId, setRejectingUserId] = useState<string | null>(null);
   const [accountActionId, setAccountActionId] = useState<string | null>(null);
   const [payoutActionId, setPayoutActionId] = useState<string | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
 
   const fetchPendingUsers = useCallback(async () => {
     setLoadingUsers(true);
@@ -170,6 +172,25 @@ export const UserApprovalPage: React.FC = () => {
       setNotice({ type: 'error', text: getErrorMessage(error, 'Unable to reject this account.') });
     } finally {
       setAccountActionId(null);
+    }
+  };
+
+  const handleRemoveUnapproved = async () => {
+    if (!window.confirm('This will permanently remove ALL unapproved (anonymous) user accounts. Only approved accounts will be kept. This cannot be undone. Continue?')) return;
+    setIsRemoving(true);
+    try {
+      const result = await adminService.removeUnapprovedUsers();
+      if (result.status === 'success') {
+        setPendingUsers([]);
+        void fetchPendingUsers();
+        setNotice({ type: 'success', text: `Removed ${result.data.deletedCount} unapproved user account(s).` });
+      } else {
+        setNotice({ type: 'error', text: result.message || 'Unable to remove unapproved accounts.' });
+      }
+    } catch (error) {
+      setNotice({ type: 'error', text: getErrorMessage(error, 'Unable to remove unapproved accounts.') });
+    } finally {
+      setIsRemoving(false);
     }
   };
 
@@ -373,7 +394,17 @@ export const UserApprovalPage: React.FC = () => {
                 <h2 id="account-requests-heading" className="text-lg font-semibold text-white">Registration review</h2>
                 <p className="mt-1 text-sm text-slate-400">Confirm new users before granting platform access.</p>
               </div>
-              <span className="text-xs text-slate-500">{filteredUsers.length} shown</span>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <span className="text-xs text-slate-500">{filteredUsers.length} shown</span>
+                <button
+                  type="button"
+                  onClick={handleRemoveUnapproved}
+                  disabled={isRemoving || filteredUsers.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/20 disabled:opacity-50"
+                >
+                  <Trash2 size={14} /> Remove unapproved
+                </button>
+              </div>
             </div>
             {usersError && (
               <div className="mb-4 flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">

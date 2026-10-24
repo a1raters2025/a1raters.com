@@ -283,6 +283,14 @@ export const adminService = {
     return apiClient.get<{ status: string; data: { stats: AdminStats; recentActivity: ActivityEntry[] } }>('/admin/stats');
   },
 
+  async clearActivityLog(): Promise<{ status: string; message: string; data: { deletedCount: number } }> {
+    return apiClient.delete<{ status: string; message: string; data: { deletedCount: number } }>('/admin/activity');
+  },
+
+  async removeUnapprovedUsers(): Promise<{ status: string; message: string; data: { deletedCount: number } }> {
+    return apiClient.delete<{ status: string; message: string; data: { deletedCount: number } }>('/admin/users/unapproved');
+  },
+
   async getSettings(): Promise<{ status: string; data: Record<string, unknown> }> {
     return apiClient.get<{ status: string; data: Record<string, unknown> }>('/admin/settings');
   },
