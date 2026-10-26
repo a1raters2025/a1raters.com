@@ -4,7 +4,23 @@ import { BookOpen, CheckCircle2, Film, UploadCloud } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { authService } from '../../services/authService';
 
-type TrainingItem = { _id: string; name: string; title?: string; description?: string; url: string; resourceType: string; createdAt: string };
+type TrainingItem = {
+  _id: string;
+  name: string;
+  title?: string;
+  description?: string;
+  url: string;
+  resourceType: string;
+  createdAt: string;
+};
+type AdminTrainingItem = {
+  _id: string;
+  title: string;
+  description?: string;
+  videoUrl: string;
+  mediaType?: 'image' | 'video' | 'audio';
+  createdAt: string;
+};
 export const TrainingPage: React.FC = () => {
   const user = authService.getUser();
   const [items, setItems] = useState<TrainingItem[]>([]);
@@ -14,8 +30,20 @@ export const TrainingPage: React.FC = () => {
 
   const loadTraining = async () => {
     try {
-      const response = await apiClient.get<{ training: TrainingItem[] }>('/files/training');
-      setItems(response.training);
+      const [filesResponse, videosResponse] = await Promise.all([
+        apiClient.get<{ training: TrainingItem[] }>('/files/training'),
+        apiClient.get<{ data: AdminTrainingItem[] }>('/admin/videos'),
+      ]);
+      const videos = videosResponse.data.map((item) => ({
+        _id: item._id,
+        name: item.title,
+        title: item.title,
+        description: item.description,
+        url: item.videoUrl,
+        resourceType: item.mediaType === 'audio' ? 'raw' : item.mediaType || 'video',
+        createdAt: item.createdAt,
+      }));
+      setItems([...videos, ...filesResponse.training]);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to load training.');
     } finally {
@@ -172,10 +200,16 @@ export const TrainingPage: React.FC = () => {
               whileHover={{ scale: 1.02, y: -4 }}
             >
               <div className="video-frame">
-                <video controls preload="metadata" src={item.url} />
+                {item.resourceType === 'image' ? (
+                  <img src={item.url} alt={item.title || item.name} />
+                ) : item.resourceType === 'raw' ? (
+                  <audio controls preload="metadata" src={item.url} />
+                ) : (
+                  <video controls preload="metadata" src={item.url} />
+                )}
               </div>
               <div className="training-card-body">
-                <div className="card-label">Training video</div>
+                <div className="card-label">Training {item.resourceType === 'raw' ? 'audio' : item.resourceType}</div>
                 <h2 className="mt-1 text-lg font-semibold text-white truncate">{item.title || item.name}</h2>
                 <p className="mt-2 text-sm text-slate-400 line-clamp-3">{item.description || 'Practical guidance for accurate, consistent evaluations.'}</p>
                 <time className="block mt-4 text-xs text-slate-500">

@@ -249,13 +249,6 @@ export const ReportHistory: React.FC = () => {
         setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
     };
 
-    // Bank Details State
-    const [bankDetails, setBankDetails] = useState({
-        bankName: '',
-        accountNumber: '',
-        accountName: ''
-    });
-
     // ... (existing code for dates and months)
 
 // Auto-open Modal from Dashboard
@@ -264,7 +257,6 @@ export const ReportHistory: React.FC = () => {
         setInvoiceMessage('');
         setBatchItems([]);
         setCurrentItem({ profileName: '', email: '', proxy: '', dateRange: '', hours: '' });
-        setBankDetails({ bankName: '', accountNumber: '', accountName: '' }); // Reset bank details
         setAddTrainingBonus(false);
         setAddAuditorBonus(false);
         setShowInvoiceModal(true);
@@ -315,9 +307,6 @@ export const ReportHistory: React.FC = () => {
             if (batchItems.length === 0) {
                 return alert('Please add at least one report entry.');
             }
-            if (!bankDetails.bankName || !bankDetails.accountNumber || !bankDetails.accountName) {
-                return alert('Please fill in all Account Details (Bank Name, Account Number, Full Name).');
-            }
         }
 
         const bonuses = [];
@@ -334,7 +323,6 @@ export const ReportHistory: React.FC = () => {
                     message: invoiceMessage,
                     items: invoiceType === 'Invoice' ? batchItems : undefined,
                     bonuses: invoiceType === 'Invoice' ? bonuses : undefined,
-                    bankDetails: invoiceType === 'Invoice' ? bankDetails : undefined,
                     // Don't change date or raterName
                 });
                 alert('Invoice updated successfully!');
@@ -347,7 +335,6 @@ export const ReportHistory: React.FC = () => {
                 message: invoiceMessage,
                 items: invoiceType === 'Invoice' ? batchItems : undefined,
                 bonuses: invoiceType === 'Invoice' ? bonuses : undefined,
-                bankDetails: invoiceType === 'Invoice' ? bankDetails : undefined,
                 month: viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })
             });
             alert(`${invoiceType} submitted successfully! Waiting for Admin Approval.`);
@@ -404,12 +391,6 @@ export const ReportHistory: React.FC = () => {
         setInvoiceType(invoice.type);
         setInvoiceMessage(invoice.message || '');
         setBatchItems(invoice.items || []);
-
-        if (invoice.bankDetails) {
-            setBankDetails(invoice.bankDetails);
-        } else {
-            setBankDetails({ bankName: '', accountNumber: '', accountName: '' });
-        }
 
         // Handle Bonuses
         setAddTrainingBonus(false);
@@ -826,41 +807,6 @@ export const ReportHistory: React.FC = () => {
                                             </div>
                                         </div>
 
-                                            <div className="pt-4 border-t space-y-3">
-                                                <h4 className="text-sm font-bold text-gray-800 flex items-center">
-                                                    <span className="bg-blue-100 text-blue-800 p-1 rounded mr-2">🏦</span>
-                                                    Account Details needed for Payment
-                                                </h4>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                    <div className="md:col-span-2">
-                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Bank Name</label>
-                                                        <input
-                                                            className="w-full px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
-                                                            placeholder="e.g. GTBank, Zenith Bank"
-                                                            value={bankDetails.bankName}
-                                                            onChange={e => setBankDetails({ ...bankDetails, bankName: e.target.value })}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Account Number</label>
-                                                        <input
-                                                            className="w-full px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
-                                                            placeholder="0123456789"
-                                                            value={bankDetails.accountNumber}
-                                                            onChange={e => setBankDetails({ ...bankDetails, accountNumber: e.target.value })}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-xs font-medium text-gray-600 mb-1">Account Name</label>
-                                                        <input
-                                                            className="w-full px-3 py-2 border border-gray-400 rounded text-sm text-gray-900 bg-white placeholder-gray-600 focus:ring-2 focus:ring-blue-500 outline-none"
-                                                            placeholder="Full Name on Account"
-                                                            value={bankDetails.accountName}
-                                                            onChange={e => setBankDetails({ ...bankDetails, accountName: e.target.value })}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
                                     </div>
                                 )}
 

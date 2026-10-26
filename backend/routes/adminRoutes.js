@@ -517,7 +517,7 @@ Router.get(
         const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
         const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
         const skip = (page - 1) * limit;
-        const filter = { role: "user" };
+        const filter = { role: "user", isApproved: true };
         if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus;
         if (req.query.search) {
             const search = new RegExp(escapeRegex(String(req.query.search).trim()), "i");
@@ -570,20 +570,7 @@ Router.get(
     asyncHandler(async (req, res) => {
         const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
         const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
-        const filter = {
-            role: "user",
-            $or: [
-                { paymentStatus: "processing" },
-                {
-                    $expr: {
-                        $gt: [
-                            { $subtract: [{ $ifNull: ["$totalEarned", 0] }, { $ifNull: ["$totalPaid", 0] }] },
-                            0,
-                        ],
-                    },
-                },
-            ],
-        };
+        const filter = { role: "user", isApproved: true };
         if (req.query.search) {
             const search = new RegExp(escapeRegex(String(req.query.search).trim()), "i");
             filter.$and = [{ $or: [{ userName: search }, { email: search }, { proxy: search }] }];
@@ -626,11 +613,8 @@ Router.get(
         const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
         const limit = Math.min(100, Math.max(1, Number.parseInt(req.query.limit, 10) || 50));
         const accountFilter = {
-            role: { $in: ["user", "client"] },
-            $or: ["paypalEmail", "accountNumber", "accountName", "bankName", "bankCode", "routingNumber", "iban", "swiftCode"]
-                .map((field) => ({
-                    [`paymentDetails.${field}`]: { $exists: true, $nin: [null, ""] },
-                })),
+            role: "user",
+            isApproved: true,
         };
         const [users, total] = await Promise.all([
             User.find({

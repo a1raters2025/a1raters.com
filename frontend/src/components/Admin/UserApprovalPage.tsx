@@ -93,8 +93,13 @@ export const UserApprovalPage: React.FC = () => {
     setLoadingPayouts(true);
     setPayoutsError('');
     try {
-      const result = await adminService.getPayoutApprovals({ page: 1, limit: 100 });
-      setPayouts(result.data);
+      const firstPage = await adminService.getPayoutApprovals({ page: 1, limit: 100 });
+      const remainingPages = await Promise.all(
+        Array.from({ length: Math.max(0, firstPage.pagination.totalPages - 1) }, (_, index) =>
+          adminService.getPayoutApprovals({ page: index + 2, limit: 100 })
+        ),
+      );
+      setPayouts([...firstPage.data, ...remainingPages.flatMap((result) => result.data)]);
     } catch (error) {
       setPayoutsError(getErrorMessage(error, 'Unable to load payout approvals.'));
       setPayouts([]);

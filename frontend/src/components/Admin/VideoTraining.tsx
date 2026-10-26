@@ -14,6 +14,7 @@ interface VideoTraining {
   mediaType?: 'image' | 'video' | 'audio';
   thumbnailUrl?: string;
   category: string;
+  categories?: string[];
   duration?: string;
   isPublished: boolean;
   createdAt: string;
@@ -38,6 +39,7 @@ export const VideoTraining: React.FC = () => {
     mediaType: TrainingMediaType;
     thumbnailUrl: string;
     category: string;
+    categories: string[];
     duration: string;
     isPublished: boolean;
   }>({
@@ -46,7 +48,8 @@ export const VideoTraining: React.FC = () => {
     videoUrl: '',
     mediaType: 'video',
     thumbnailUrl: '',
-    category: 'General',
+    category: '',
+    categories: [],
     duration: '',
     isPublished: true,
   });
@@ -56,20 +59,16 @@ export const VideoTraining: React.FC = () => {
   const [uploadingMedia, setUploadingMedia] = useState(false);
 
   const categories = [
-    'General',
-    'Onboarding',
-    'Task Guidelines',
-    'Rating Guidelines',
-    'Tools & Tips',
-    'Best Practices',
-    'Advanced',
-    'Appstore Search Results',
-    'Appstore Suggestion',
-    'Appstore Tag Relevance',
-    'App Image Accessibility',
-    'AI Assits',
+    'App Store',
+    'Mac App Store',
+    'Video',
     'Video Hint',
-    'Video Complete & Video Siri',
+    'Podcast',
+    'Music',
+    'AI Assist',
+    'App Image Accessibility',
+    'Manual Invoice',
+    'App Store Image',
   ];
 
   const fetchVideos = async () => {
@@ -97,7 +96,8 @@ export const VideoTraining: React.FC = () => {
   const filteredVideos = videos.filter(video => {
     const matchesSearch = video.title.toLowerCase().includes(search.toLowerCase()) ||
       video.description.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = categoryFilter === 'all' || video.category === categoryFilter;
+    const matchesCategory = categoryFilter === 'all'
+      || (video.categories || (video.category === 'General' ? [] : [video.category])).includes(categoryFilter);
     return matchesSearch && matchesCategory;
   });
 
@@ -110,7 +110,8 @@ export const VideoTraining: React.FC = () => {
         videoUrl: '',
         mediaType: 'video',
         thumbnailUrl: '',
-        category: 'General',
+        category: '',
+        categories: [],
         duration: '',
         isPublished: true,
       });
@@ -122,7 +123,8 @@ export const VideoTraining: React.FC = () => {
         videoUrl: video.videoUrl,
         mediaType: video.mediaType || 'video',
         thumbnailUrl: video.thumbnailUrl || '',
-        category: video.category,
+        category: video.categories?.[0] || (categories.includes(video.category) ? video.category : ''),
+        categories: video.categories || (categories.includes(video.category) ? [video.category] : []),
         duration: video.duration || '',
         isPublished: video.isPublished,
       });
@@ -202,8 +204,8 @@ export const VideoTraining: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!formData.title || !formData.videoUrl) {
-      setError('Title and a media URL or uploaded file are required.');
+    if (!formData.title || !formData.videoUrl || formData.categories.length === 0) {
+      setError('Title, media, and at least one rater category are required.');
       return;
     }
 
@@ -546,17 +548,27 @@ export const VideoTraining: React.FC = () => {
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:border-indigo-400 transition-all text-sm outline-none appearance-none"
-                    disabled={modalMode === 'view'}
-                  >
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
+                <fieldset disabled={modalMode === 'view'} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                  <legend className="px-1 text-xs font-bold uppercase text-slate-400">Visible to raters in categories</legend>
+                  <p className="mb-3 text-xs text-slate-500">Raters see this training when their profile includes at least one selected category.</p>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {categories.map((item) => (
+                      <label key={item} className="flex items-center gap-2 text-sm text-slate-200">
+                        <input
+                          type="checkbox"
+                          checked={formData.categories.includes(item)}
+                          onChange={(e) => {
+                            const selected = e.target.checked
+                              ? [...formData.categories, item]
+                              : formData.categories.filter((category) => category !== item);
+                            setFormData({ ...formData, categories: selected, category: selected[0] || '' });
+                          }}
+                        />
+                        {item}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Duration (seconds)</label>

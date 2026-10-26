@@ -5,8 +5,20 @@ import admin from "../middlewares/adminMiddleware.js";
 import TrainingVideo from "../models/TrainingVideo.js";
 
 const Router = express.Router();
-const fields = ["title", "description", "videoUrl", "mediaType", "thumbnailUrl", "category", "duration", "isPublished"];
+const fields = ["title", "description", "videoUrl", "mediaType", "thumbnailUrl", "category", "categories", "duration", "isPublished"];
 const mediaTypes = new Set(["image", "video", "audio"]);
+const raterCategories = new Set([
+  "App Store",
+  "Mac App Store",
+  "Video",
+  "Video Hint",
+  "Podcast",
+  "Music",
+  "AI Assist",
+  "App Image Accessibility",
+  "Manual Invoice",
+  "App Store Image",
+]);
 
 const validateVideoUrl = (value) => {
   if (typeof value !== "string") return false;
@@ -21,9 +33,22 @@ const validateVideoUrl = (value) => {
 const withId = (video) => ({ ...video, id: video._id.toString() });
 
 Router.route("/")
-  .get(auth, admin, async (req, res) => {
+  .get(auth, async (req, res) => {
     try {
-      const videos = await TrainingVideo.find().sort({ createdAt: -1 }).lean();
+      const filter = req.user.role === "admin"
+        ? {}
+        : {
+            isPublished: true,
+            $or: [
+              { categories: { $in: req.user.categories || [] } },
+              { category: { $in: req.user.categories || [] } },
+              {
+                category: "General",
+                $or: [{ categories: { $exists: false } }, { categories: { $size: 0 } }],
+              },
+            ],
+          };
+      const videos = await TrainingVideo.find(filter).sort({ createdAt: -1 }).lean();
       res.status(200).json({ status: "success", data: videos.map(withId) });
     } catch (error) {
       console.error("Failed to load training videos:", error);
@@ -31,9 +56,13 @@ Router.route("/")
     }
   })
   .post(auth, admin, async (req, res) => {
-    const { title, videoUrl, category, mediaType } = req.body;
-    if (typeof title !== "string" || !title.trim() || !validateVideoUrl(videoUrl) || typeof category !== "string" || !category.trim()) {
-      return res.status(400).json({ status: "fail", message: "A title, valid video URL, and category are required" });
+    const { title, videoUrl, category, categories, mediaType } = req.body;
+    const selectedCategories = categories === undefined ? [category] : categories;
+    if (typeof title !== "string" || !title.trim() || !validateVideoUrl(videoUrl)
+      || !Array.isArray(selectedCategories)
+      || selectedCategories.length === 0
+      || selectedCategories.some((item) => !raterCategories.has(item))) {
+      return res.status(400).json({ status: "fail", message: "A title, valid media URL, and at least one valid rater category are required" });
     }
     if (mediaType !== undefined && !mediaTypes.has(mediaType)) {
       return res.status(400).json({ status: "fail", message: "Media type must be image, video, or audio" });
@@ -44,7 +73,8 @@ Router.route("/")
         ...Object.fromEntries(Object.entries(req.body).filter(([key]) => fields.includes(key))),
         title: title.trim(),
         videoUrl: videoUrl.trim(),
-        category: category.trim(),
+        category: selectedCategories[0],
+        categories: selectedCategories,
         createdBy: req.user._id,
       });
       res.status(201).json({ status: "success", data: withId(video.toObject()) });
@@ -71,6 +101,15 @@ Router.route("/:id")
     }
     if (updates.mediaType !== undefined && !mediaTypes.has(updates.mediaType)) {
       return res.status(400).json({ status: "fail", message: "Media type must be image, video, or audio" });
+    }
+    if (updates.categories !== undefined
+      && (!Array.isArray(updates.categories)
+        || updates.categories.length === 0
+        || updates.categories.some((item) => !raterCategories.has(item)))) {
+      return res.status(400).json({ status: "fail", message: "Select at least one valid rater category" });
+    }
+    if (updates.categories !== undefined) {
+      updates.category = updates.categories[0];
     }
     if (updates.category !== undefined && (typeof updates.category !== "string" || !updates.category.trim())) {
       return res.status(400).json({ status: "fail", message: "Video category is required" });

@@ -39,7 +39,7 @@ export const PaymentDetailsApprovals: React.FC = () => {
   }, [loadPaymentDetails]);
 
   const reviewDetails = async (rater: RaterPayment, decision: 'approved' | 'rejected') => {
-    let note = '';
+    let note: string;
     if (decision === 'rejected') {
       const rejectionNote = window.prompt('Reason for rejecting these payment details (required):');
       if (rejectionNote === null) return;
@@ -72,7 +72,7 @@ export const PaymentDetailsApprovals: React.FC = () => {
         <div>
           <span className="eyebrow"><ShieldCheck size={14} /> Admin panel</span>
           <h1>Payment Details Approvals</h1>
-          <p>Review rater-submitted PayPal and other payment details. New submissions appear here in real time.</p>
+          <p>View approved raters and review any submitted PayPal or other payment details. New submissions appear here in real time.</p>
         </div>
         <button className="btn-glass px-4 py-2" onClick={refreshPaymentDetails} disabled={loading}>
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
@@ -93,14 +93,18 @@ export const PaymentDetailsApprovals: React.FC = () => {
         <div className="space-y-4">
           {raters.map((rater) => {
             const details = rater.paymentDetails;
-            const isPending = details.verificationStatus === 'pending_review';
+            const hasDetails = Boolean(
+              details.paypalEmail || details.accountNumber || details.accountName || details.bankName
+              || details.paymentProvider || details.routingNumber || details.iban || details.swiftCode,
+            );
+            const isPending = hasDetails && details.verificationStatus === 'pending_review';
             const isBusy = busyUserId === rater._id;
             const isPaystack = details.method === 'paystack' || (!details.method && Boolean(details.bankCode));
             const methodName = details.method === 'paypal'
               ? 'PayPal'
               : details.method === 'manual'
                 ? details.paymentProvider || 'Other payment method'
-                : 'Paystack';
+                : hasDetails ? 'Paystack' : 'No payment method';
 
             return (
               <GlassCard key={rater._id} className="p-5" hover={false}>
@@ -109,11 +113,12 @@ export const PaymentDetailsApprovals: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="font-semibold text-white">{rater.userName || rater.email}</h2>
                       <span className="rounded-full bg-white/10 px-2.5 py-1 text-xs text-slate-200">{methodName}</span>
-                      <span className={`rounded-full px-2.5 py-1 text-xs ${isPending ? 'bg-amber-400/15 text-amber-200' : isPaystack || details.verificationStatus === 'approved' ? 'bg-emerald-400/15 text-emerald-200' : 'bg-red-400/15 text-red-200'}`}>
-                        {isPaystack ? 'Paystack verified' : (details.verificationStatus || 'pending review').replace('_', ' ')}
+                      <span className={`rounded-full px-2.5 py-1 text-xs ${!hasDetails ? 'bg-white/10 text-slate-300' : isPending ? 'bg-amber-400/15 text-amber-200' : isPaystack || details.verificationStatus === 'approved' ? 'bg-emerald-400/15 text-emerald-200' : 'bg-red-400/15 text-red-200'}`}>
+                        {!hasDetails ? 'No details submitted' : isPaystack ? 'Paystack verified' : (details.verificationStatus || 'pending review').replace('_', ' ')}
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-slate-400">{rater.email}</p>
+                    {!hasDetails && <p className="mt-2 text-xs text-slate-500">No payment details submitted yet.</p>}
 
                     <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                       {details.paypalEmail && <div><dt className="text-xs uppercase text-slate-500">PayPal email</dt><dd className="mt-1 break-all text-slate-100">{details.paypalEmail}</dd></div>}

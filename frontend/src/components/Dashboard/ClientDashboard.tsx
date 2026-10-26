@@ -7,7 +7,7 @@ import { GlassCard } from '../UI/GlassCard';
 
 export const ClientDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [data, setData] = useState<ClientDashboardResponse['data']>({ dailyTotals: [] });
+  const [data, setData] = useState<ClientDashboardResponse['data']>({ dailyTotals: [], raterTotals: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -53,8 +53,8 @@ export const ClientDashboard: React.FC = () => {
         <header className="mb-8 flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-cyan-400">Client activity</p>
-            <h1 className="mt-2 text-3xl font-bold">Daily Task Summary</h1>
-            <p className="mt-2 text-sm text-slate-400">Daily task and hour totals from raters working on your tasks.</p>
+            <h1 className="mt-2 text-3xl font-bold">Rater Activity</h1>
+            <p className="mt-2 text-sm text-slate-400">Reports submitted using your client account email, grouped by rater.</p>
           </div>
           <button
             onClick={handleLogout}
@@ -63,6 +63,32 @@ export const ClientDashboard: React.FC = () => {
             <LogOut className="h-4 w-4" /> Sign out
           </button>
         </header>
+
+        <GlassCard className="p-6" hover={false}>
+          <div className="mb-5">
+            <h2 className="text-lg font-bold text-white">Raters and hours worked</h2>
+            <p className="mt-1 text-sm text-slate-400">Activity is matched to the email on your client account.</p>
+          </div>
+
+          {error && <p role="alert" className="mb-4 text-sm text-red-300">{error}</p>}
+          {loading ? (
+            <p className="text-sm text-slate-400">Loading rater activity...</p>
+          ) : data.raterTotals.length ? (
+            <ul className="divide-y divide-white/10">
+              {data.raterTotals.map(({ raterId, raterName, totalHours, totalTasks, reportCount }) => (
+                <li key={`${raterId || raterName}-${raterName}`} className="flex items-center justify-between gap-4 py-4">
+                  <div>
+                    <span className="font-medium text-slate-200">{raterName}</span>
+                    <span className="mt-1 block text-xs text-slate-400">{reportCount} reports · {totalTasks} tasks</span>
+                  </div>
+                  <span className="text-right font-bold text-cyan-300">{totalHours} hours</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-slate-400">No reports have been submitted using your client account email yet.</p>
+          )}
+        </GlassCard>
 
         <GlassCard className="p-6" hover={false}>
           <div className="mb-5 flex items-center justify-between">
@@ -78,7 +104,6 @@ export const ClientDashboard: React.FC = () => {
             </button>
           </div>
 
-          {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
           {loading ? (
             <p className="text-sm text-slate-400">Loading hours...</p>
           ) : data.dailyTotals.length ? (

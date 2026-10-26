@@ -13,8 +13,10 @@ const getOwnedInvoiceFilter = (user) => ({
 
 export const createInvoice = async (req, res, next) => {
   try {
+    const invoiceFields = { ...req.body };
+    delete invoiceFields.bankDetails;
     const invoiceData = {
-      ...req.body,
+      ...invoiceFields,
       raterName: req.user.role === "admin" ? req.body.raterName : req.user.userName,
       submittedBy: req.user._id,
       userId: req.user._id,
@@ -180,7 +182,9 @@ export const updateInvoice = async (req, res, next) => {
       return next(new AppError("Paystack payout receipts cannot be edited", 409));
     }
 
-    const invoice = await Invoice.findByIdAndUpdate(req.params.id, req.body, {
+    const invoiceFields = { ...req.body };
+    delete invoiceFields.bankDetails;
+    const invoice = await Invoice.findByIdAndUpdate(req.params.id, invoiceFields, {
       returnDocument: 'after',
       runValidators: true,
     }).populate("submittedBy", "userName email");
@@ -288,13 +292,6 @@ export const updateInvoiceStatus = async (req, res, next) => {
         tasksWorked: "0",
         hoursWorked: item.hours,
         date: invoice.date,
-        paymentDetails: invoice.bankDetails
-          ? {
-              bankName: invoice.bankDetails.bankName,
-              accountNumber: invoice.bankDetails.accountNumber,
-              accountName: invoice.bankDetails.accountName,
-            }
-          : undefined,
         submittedBy: invoice.userId || req.user._id,
         invoiceId: invoice._id,
       }));

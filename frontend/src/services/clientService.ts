@@ -5,6 +5,13 @@ export interface ClientDashboardResponse {
     message: string;
     data: {
         dailyTotals: { date: string; totalTasks: number; totalHours: number }[];
+        raterTotals: {
+            raterId: string | null;
+            raterName: string;
+            totalHours: number;
+            totalTasks: number;
+            reportCount: number;
+        }[];
     };
 }
 

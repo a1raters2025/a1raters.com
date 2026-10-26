@@ -35,6 +35,10 @@ const trainingVideoSchema = new mongoose.Schema(
       trim: true,
       maxlength: 100,
     },
+    categories: {
+      type: [String],
+      default: [],
+    },
     duration: {
       type: String,
       trim: true,

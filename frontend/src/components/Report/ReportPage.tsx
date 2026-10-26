@@ -13,6 +13,7 @@ interface ReportEntry {
   raterName: string;
   profileName: string;
   email: string;
+  clientPassword?: string;
   category: string;
   proxy: string;
   status: string;
@@ -35,6 +36,7 @@ export const ReportPage: React.FC = () => {
   const [raterName, setRaterName] = useState(loggedInUser?.username || '');
   const [profileName, setProfileName] = useState('');
   const [email, setEmail] = useState('');
+  const [clientPassword, setClientPassword] = useState('');
   const [date, setDate] = useState(getLocalDate);
   const [category, setCategory] = useState('');
   const [proxy, setProxy] = useState('');
@@ -67,8 +69,12 @@ export const ReportPage: React.FC = () => {
   }, [calculatedHours]);
 
   const handleAddEntry = () => {
-    if (!raterName || !profileName || !email || !date || !category || !proxy || !tasksWorked || !hoursWorked) {
+    if (!raterName || !profileName || !email || (!isAdmin && !clientPassword) || !date || !category || !proxy || !tasksWorked || !hoursWorked) {
       alert('Please fill in all fields before adding.');
+      return;
+    }
+    if (!isAdmin && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{6,}$/.test(clientPassword)) {
+      alert('Client password must be at least 6 characters and include uppercase, lowercase, number, and symbol.');
       return;
     }
 
@@ -90,6 +96,7 @@ export const ReportPage: React.FC = () => {
       raterName,
       profileName,
       email,
+      ...(!isAdmin ? { clientPassword } : {}),
       category: selectedCat ? selectedCat.name : category,
       proxy,
       status,
@@ -105,6 +112,7 @@ export const ReportPage: React.FC = () => {
 
     setTasksWorked('');
     setHoursWorked('');
+    setClientPassword('');
     setStatus('Active');
     setCategory('');
     setProxy('');
@@ -230,14 +238,16 @@ export const ReportPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1.5">Email Address</label>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  {isAdmin ? 'Email Address' : 'Client Account Email'}
+                </label>
                 <input
                   type="email"
                   list="email-history"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
-                  placeholder="Enter or select email"
+                  placeholder={isAdmin ? 'Enter or select email' : 'Email used for the client account'}
                 />
                 <datalist id="email-history">
                   {savedEmails.map((e) => (
@@ -245,6 +255,21 @@ export const ReportPage: React.FC = () => {
                   ))}
                 </datalist>
               </div>
+
+              {!isAdmin && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Client Account Password</label>
+                  <input
+                    type="password"
+                    autoComplete="new-password"
+                    value={clientPassword}
+                    onChange={(e) => setClientPassword(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none transition-all placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10"
+                    placeholder="At least 6 characters with upper/lowercase, number, and symbol"
+                  />
+                  <p className="mt-1 text-xs text-slate-400">Use the existing password for a registered client. If this email is new, a client account will be created when you submit. Passwords are hashed and not saved with reports.</p>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Date task was published</label>

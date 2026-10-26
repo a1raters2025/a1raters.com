@@ -1,33 +1,23 @@
-import mongoose from "mongoose";
 import Report from "../models/Report.js";
 import Task from "../models/Task.js";
-import AppError from "../errors/AppError.js";
 
 const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 export const getClientDashboard = async (req, res, next) => {
     try {
-        const clientTasks = await Task.find({ client: req.user._id })
-            .select("category assignedRaters currentRater")
-            .lean();
-        const projectCategories = [...new Set(clientTasks.map((task) => task.category))];
-        const raterIds = [...new Set(clientTasks.flatMap((task) => [
-            ...(task.assignedRaters || []),
-            ...(task.currentRater ? [task.currentRater] : []),
-        ]).map((id) => id.toString()))];
-        const dailyTotals = projectCategories.length && raterIds.length
-            ? await Report.aggregate([
+        const reportFilter = {
+            email: req.user.email.toLowerCase(),
+            isDeleted: { $ne: true },
+        };
+        const [dailyTotals, raterTotals] = await Promise.all([
+            Report.aggregate([
                 {
-                    $match: {
-                        category: { $in: projectCategories },
-                        submittedBy: { $in: raterIds.map((id) => new mongoose.Types.ObjectId(id)) },
-                        isDeleted: { $ne: true },
-                    },
+                    $match: reportFilter,
                 },
                 {
                     $group: {
                         _id: { $dateToString: { format: "%Y-%m-%d", date: "$date", timezone: "Africa/Lagos" } },
-                        totalHours: { $sum: { $toDouble: "$hoursWorked" } },
+                        totalHours: { $sum: { $convert: { input: "$hoursWorked", to: "double", onError: 0, onNull: 0 } } },
                         totalTasks: { $sum: { $convert: { input: "$tasksWorked", to: "double", onError: 0, onNull: 0 } } },
                     },
                 },
@@ -40,13 +30,36 @@ export const getClientDashboard = async (req, res, next) => {
                     },
                 },
                 { $sort: { date: -1 } },
-            ])
-            : [];
+            ]),
+            Report.aggregate([
+                { $match: reportFilter },
+                {
+                    $group: {
+                        _id: { raterName: "$raterName", submittedBy: "$submittedBy" },
+                        totalHours: { $sum: { $convert: { input: "$hoursWorked", to: "double", onError: 0, onNull: 0 } } },
+                        totalTasks: { $sum: { $convert: { input: "$tasksWorked", to: "double", onError: 0, onNull: 0 } } },
+                        reportCount: { $sum: 1 },
+                    },
+                },
+                {
+                    $project: {
+                        _id: 0,
+                        raterId: "$_id.submittedBy",
+                        raterName: "$_id.raterName",
+                        totalHours: { $round: ["$totalHours", 2] },
+                        totalTasks: { $round: ["$totalTasks", 0] },
+                        reportCount: 1,
+                    },
+                },
+                { $sort: { raterName: 1 } },
+            ]),
+        ]);
         res.status(200).json({
             status: "success",
-            message: "Daily task and hour totals retrieved successfully",
+            message: "Rater activity and hour totals retrieved successfully",
             data: {
                 dailyTotals,
+                raterTotals,
             },
         });
     } catch (err) {

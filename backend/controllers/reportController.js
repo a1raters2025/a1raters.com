@@ -1,6 +1,8 @@
 import Report from "../models/Report.js";
 import AuditLog from "../models/AuditLog.js";
 import Invoice from "../models/Invoice.js";
+import mongoose from "mongoose";
+import bcrypt from "bcrypt";
 import { User } from "../models/userSchema.js";
 import AppError from "../errors/AppError.js";
 import { emitAdminUpdate } from "../utils/socket.js";
@@ -125,9 +127,46 @@ export const bulkCreateReports = async (req, res, next) => {
     if (!Array.isArray(req.body?.reports) || req.body.reports.length === 0) {
       return res.status(400).json({ status: "fail", message: "At least one report is required" });
     }
+    if (req.body.reports.some((report) => !report || typeof report !== "object" || Array.isArray(report))) {
+      return res.status(400).json({ status: "fail", message: "Each report must be a valid report object" });
+    }
 
     const submittedAt = new Date();
-    const reports = req.body.reports.map((report) => {
+    const clientAccounts = new Map();
+    const clientCategories = new Set([
+      "App Store",
+      "Mac App Store",
+      "Video",
+      "Video Hint",
+      "Podcast",
+      "Music",
+      "AI Assist",
+      "App Image Accessibility",
+      "App Store Image",
+    ]);
+    const reports = req.body.reports.map((input) => {
+      const { clientPassword, ...report } = input;
+      if (req.user.role === "user") {
+        if (typeof clientPassword !== "string" || !clientPassword) {
+          throw new AppError("A password is required for each client account in the report batch", 400);
+        }
+        const email = typeof report.email === "string" ? report.email.trim().toLowerCase() : "";
+        const existingEntry = clientAccounts.get(email);
+        if (existingEntry && existingEntry.password !== clientPassword) {
+          throw new AppError("Each client email must use the same password throughout a report batch", 400);
+        }
+        clientAccounts.set(email, {
+          email,
+          password: clientPassword,
+          categories: new Set([
+            ...(existingEntry?.categories || []),
+            ...(clientCategories.has(report.category) ? [report.category] : []),
+          ]),
+        });
+      } else if (clientPassword !== undefined) {
+        throw new AppError("Only raters can register client accounts through report submission", 403);
+      }
+
       const penalty = isLateSubmission(submittedAt, report.date) ? LATE_PENALTY_AMOUNT : 0;
       return {
         ...report,
@@ -149,17 +188,61 @@ export const bulkCreateReports = async (req, res, next) => {
     }
     await Promise.all(reports.map((report) => new Report(report).validate()));
 
+    const session = await mongoose.startSession();
     let writeResult;
     try {
-      writeResult = await Report.bulkWrite(reports.map((report) => ({
-        updateOne: {
-          filter: { submissionId: report.submissionId },
-          update: { $setOnInsert: report },
-          upsert: true,
-        },
-      })), { ordered: true });
-    } catch (error) {
-      if (error.code !== 11000) throw error;
+      await session.withTransaction(async () => {
+        const existingSubmissionIds = new Set(await Report.find({
+          submissionId: { $in: submissionIds },
+        }).distinct("submissionId").session(session));
+        const newReports = reports.filter((report) => !existingSubmissionIds.has(report.submissionId));
+        if (req.user.role === "user" && newReports.length > 0) {
+          const newClientAccounts = new Map();
+          newReports.forEach((report) => {
+            const credentials = clientAccounts.get(report.email.trim().toLowerCase());
+            if (credentials) newClientAccounts.set(credentials.email, credentials);
+          });
+          const existingAccounts = await User.find({
+            email: { $in: [...newClientAccounts.keys()] },
+          }).select("email role password").session(session);
+          const existingAccountsByEmail = new Map(existingAccounts.map((account) => [account.email, account]));
+          for (const [email, credentials] of newClientAccounts) {
+            const existingAccount = existingAccountsByEmail.get(email);
+            if (!existingAccount) continue;
+            if (existingAccount.role !== "client") {
+              throw new AppError("This email belongs to an account that cannot be used as a client account", 409);
+            }
+            if (!await bcrypt.compare(credentials.password, existingAccount.password)) {
+              throw new AppError("The client email or password is incorrect", 401);
+            }
+            newClientAccounts.delete(email);
+          }
+          if (newClientAccounts.size > 0) {
+            await User.create(
+              [...newClientAccounts.values()].map((account) => ({
+                userName: account.email.split("@")[0],
+                email: account.email,
+                password: account.password,
+                role: "client",
+                categories: [...account.categories],
+                isApproved: true,
+                isVerified: true,
+              })),
+              { session },
+            );
+          }
+        }
+
+        writeResult = await Report.bulkWrite(reports.map((report) => ({
+          updateOne: {
+            filter: { submissionId: report.submissionId },
+            update: { $setOnInsert: report },
+            upsert: true,
+          },
+        })), { ordered: true, session });
+      });
+    } finally {
+      await session.endSession();
     }
 
     const submittedReports = await Report.find({
