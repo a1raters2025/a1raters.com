@@ -163,6 +163,12 @@ export const analyzeTaskImage = async (req, res, next) => {
         return;
       } catch (err) {
         openAiError = err;
+        const message = err instanceof Error ? err.message : "Unknown provider error";
+        console.warn("[task-image-analysis] OpenAI failed; trying Gemini fallback", {
+          status: err?.status || err?.statusCode,
+          code: err?.code,
+          message: openAiApiKey ? message.replaceAll(openAiApiKey, "[REDACTED]") : message,
+        });
       }
     }
 
@@ -197,7 +203,7 @@ export const analyzeTaskImage = async (req, res, next) => {
 
       const ai = new GoogleGenAI({ apiKey: geminiApiKey });
       const geminiResponse = await ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+        model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
         contents: [{
           role: "user",
           parts: [
@@ -213,9 +219,25 @@ export const analyzeTaskImage = async (req, res, next) => {
       }
       res.status(200).json({ status: "success", data: JSON.parse(geminiResponse.text) });
     } catch (geminiError) {
+      const geminiMessage = geminiError instanceof Error
+        ? geminiError.message
+        : "Unknown provider error";
+      const redactedGeminiMessage = geminiApiKey
+        ? geminiMessage.replaceAll(geminiApiKey, "[REDACTED]")
+        : geminiMessage;
+      console.error("[task-image-analysis] Gemini failed", {
+        status: geminiError?.status || geminiError?.statusCode,
+        code: geminiError?.code,
+        message: redactedGeminiMessage,
+      });
+      const openAiMessage = openAiError instanceof Error
+        ? openAiApiKey
+          ? openAiError.message.replaceAll(openAiApiKey, "[REDACTED]")
+          : openAiError.message
+        : "OpenAI image analysis failed";
       const message = openAiError
-        ? "OpenAI and Gemini image analysis failed"
-        : geminiError instanceof Error ? geminiError.message : "Gemini image analysis failed";
+        ? `OpenAI and Gemini image analysis failed. OpenAI: ${openAiMessage.slice(0, 300)}. Gemini: ${redactedGeminiMessage.slice(0, 300)}.`
+        : `Gemini image analysis failed: ${redactedGeminiMessage}`;
       next(new AppError(message, 502));
     }
   } catch (err) {
