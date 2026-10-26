@@ -2,6 +2,7 @@ import Task from "../models/Task.js";
 import { User } from "../models/userSchema.js";
 import AppError from "../errors/AppError.js";
 import { emitAdminUpdate } from "../utils/socket.js";
+import { GoogleGenAI } from "@google/genai";
 
 const notifyNewTasks = (tasks) => {
   if (!tasks.length) return;
@@ -94,9 +95,10 @@ export const assignRater = async (req, res, next) => {
 
 export const analyzeTaskImage = async (req, res, next) => {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return next(new AppError("OpenAI is not configured on the server", 503));
+    const openAiApiKey = process.env.OPENAI_API_KEY;
+    const geminiApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (!openAiApiKey && !geminiApiKey) {
+      return next(new AppError("No image analysis provider is configured on the server", 503));
     }
 
     const { imageUrl } = req.body;
@@ -110,58 +112,114 @@ export const analyzeTaskImage = async (req, res, next) => {
       return next(new AppError("Image must be uploaded to the approved media storage first", 400));
     }
 
-    const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `You are a data extraction assistant. Analyze the screenshot and extract:
-              1. Search Query (Top search bar or context)
-              2. User Intent (Deduce what the user is looking for based on the query)
-              3. Result Title (The main app/video/content name)
-              4. Subtitle (Developer/Artist/Channel)
-              5. Description (Short snippet or intro)
-              6. Suggest a Correct Rating (Navigational, Excellent, Good, Acceptable, Unacceptable).
-              7. Write a short Reason for the rating.
+    const prompt = "You are a data extraction assistant. Analyze the screenshot and extract:\n" +
+      "1. Search Query (Top search bar or context)\n" +
+      "2. User Intent (Deduce what the user is looking for based on the query)\n" +
+      "3. Result Title (The main app/video/content name)\n" +
+      "4. Subtitle (Developer/Artist/Channel)\n" +
+      "5. Description (Short snippet or intro)\n" +
+      "6. Suggest a Correct Rating (Navigational, Excellent, Good, Acceptable, Unacceptable).\n" +
+      "7. Write a short Reason for the rating.\n\n" +
+      "Return strictly valid JSON with keys: query, intent, title, subtitle, description, rating, reason. Do not wrap in markdown code blocks.";
 
-            Return strictly valid JSON with keys: query, intent, title, subtitle, description, rating, reason. Do not wrap in markdown code blocks.`,
+    let openAiError;
+    if (openAiApiKey) {
+      try {
+        const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          signal: AbortSignal.timeout(30000),
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + openAiApiKey,
           },
-          {
-            role: "user",
-            content: [
-              { type: "text", text: "Analyze this image." },
-              { type: "image_url", image_url: { url: parsedImageUrl.toString() } },
+          body: JSON.stringify({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: prompt },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: "Analyze this image." },
+                  { type: "image_url", image_url: { url: parsedImageUrl.toString() } },
+                ],
+              },
             ],
-          },
-        ],
-        max_tokens: 500,
-        response_format: { type: "json_object" },
-      }),
-    });
+            max_tokens: 500,
+            response_format: { type: "json_object" },
+          }),
+        });
 
-    const responseData = await openAiResponse.json().catch(() => ({}));
-    if (!openAiResponse.ok) {
-      const message = responseData?.error?.message || "OpenAI image analysis failed";
-      return next(new AppError(message, 502));
+        const responseData = await openAiResponse.json().catch(() => ({}));
+        if (!openAiResponse.ok) {
+          throw new Error(responseData?.error?.message || "OpenAI image analysis failed");
+        }
+
+        const content = responseData?.choices?.[0]?.message?.content;
+        if (typeof content !== "string") {
+          throw new Error("OpenAI returned an invalid analysis response");
+        }
+
+        res.status(200).json({ status: "success", data: JSON.parse(content) });
+        return;
+      } catch (err) {
+        openAiError = err;
+      }
     }
 
-    const content = responseData?.choices?.[0]?.message?.content;
-    if (typeof content !== "string") {
-      return next(new AppError("OpenAI returned an invalid analysis response", 502));
+    if (!geminiApiKey) {
+      return next(new AppError(
+        openAiError instanceof Error ? openAiError.message : "OpenAI image analysis failed",
+        502,
+      ));
     }
 
-    res.status(200).json({
-      status: "success",
-      data: JSON.parse(content),
-    });
+    try {
+      const imageResponse = await fetch(parsedImageUrl, { signal: AbortSignal.timeout(15000) });
+      if (!imageResponse.ok) {
+        throw new Error("Could not retrieve the uploaded image for Gemini analysis");
+      }
+
+      const mimeType = imageResponse.headers.get("content-type")?.split(";")[0].trim().toLowerCase();
+      const supportedImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
+      if (!mimeType || !supportedImageTypes.has(mimeType)) {
+        throw new Error("Uploaded image format is not supported for Gemini analysis");
+      }
+
+      const maxImageBytes = 10 * 1024 * 1024;
+      const contentLength = Number(imageResponse.headers.get("content-length"));
+      if (contentLength > maxImageBytes) {
+        throw new Error("Uploaded image exceeds the Gemini analysis size limit");
+      }
+      const imageBytes = Buffer.from(await imageResponse.arrayBuffer());
+      if (imageBytes.length > maxImageBytes) {
+        throw new Error("Uploaded image exceeds the Gemini analysis size limit");
+      }
+
+      const ai = new GoogleGenAI({ apiKey: geminiApiKey });
+      const geminiResponse = await ai.models.generateContent({
+        model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+        contents: [{
+          role: "user",
+          parts: [
+            { text: prompt + "\n\nAnalyze this image." },
+            { inlineData: { mimeType, data: imageBytes.toString("base64") } },
+          ],
+        }],
+        config: { responseMimeType: "application/json", temperature: 0.2 },
+      });
+
+      if (typeof geminiResponse.text !== "string") {
+        throw new Error("Gemini returned an invalid analysis response");
+      }
+      res.status(200).json({ status: "success", data: JSON.parse(geminiResponse.text) });
+    } catch (geminiError) {
+      const message = openAiError
+        ? "OpenAI and Gemini image analysis failed"
+        : geminiError instanceof Error ? geminiError.message : "Gemini image analysis failed";
+      next(new AppError(message, 502));
+    }
   } catch (err) {
-    next(err instanceof SyntaxError ? new AppError("OpenAI returned invalid JSON", 502) : err);
+    next(err instanceof SyntaxError ? new AppError("AI provider returned invalid JSON", 502) : err);
   }
 };
 

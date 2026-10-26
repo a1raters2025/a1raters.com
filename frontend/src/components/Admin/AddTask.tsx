@@ -48,7 +48,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     }
   };
 
-  const analyzeImageWithGPT = async (base64Image: string) => {
+  const analyzeImageWithAI = async (imageUrl: string) => {
     setParsingStatus('scanning');
     setErrorMessage('');
 
@@ -60,7 +60,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         description?: string;
         rating?: string;
         reason?: string;
-      } }>('/tasks/analyze-image', { imageUrl: base64Image });
+      } }>('/tasks/analyze-image', { imageUrl });
       const content = response.data;
 
       setFormState((prev) => ({
@@ -92,7 +92,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         formData.append('category', 'Task asset');
         const response = await apiClient.upload<{ file: { url: string } }>('/files/upload', formData);
         setImageFile(response.file.url);
-        await analyzeImageWithGPT(response.file.url);
+        await analyzeImageWithAI(response.file.url);
       } catch (error) {
         setParsingStatus('error');
         setErrorMessage(error instanceof Error ? error.message : 'Image upload failed.');
@@ -239,7 +239,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
             {/* Image Upload */}
             <GlassCard className="p-4 sm:p-6" delay={0.2}>
-              <h2 className="text-lg font-semibold mb-4 text-slate-200">2. Upload & Analyze (OpenAI)</h2>
+              <h2 className="text-lg font-semibold mb-4 text-slate-200">2. Upload & Analyze (OpenAI with Gemini fallback)</h2>
 
               {parsingStatus === 'scanning' && (
                 <motion.div
@@ -248,7 +248,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   animate={{ opacity: 1 }}
                 >
                   <Loader2 size={16} className="mr-2 animate-spin" />
-                  OpenAI is analyzing...
+                  AI is analyzing the uploaded image...
                 </motion.div>
               )}
 
