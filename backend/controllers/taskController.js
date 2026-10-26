@@ -127,7 +127,7 @@ export const analyzeTaskImage = async (req, res, next) => {
       try {
         const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(90000),
           headers: {
             "Content-Type": "application/json",
             Authorization: "Bearer " + openAiApiKey,
@@ -180,7 +180,7 @@ export const analyzeTaskImage = async (req, res, next) => {
     }
 
     try {
-      const imageResponse = await fetch(parsedImageUrl, { signal: AbortSignal.timeout(15000) });
+      const imageResponse = await fetch(parsedImageUrl, { signal: AbortSignal.timeout(30000) });
       if (!imageResponse.ok) {
         throw new Error("Could not retrieve the uploaded image for Gemini analysis");
       }
@@ -211,7 +211,11 @@ export const analyzeTaskImage = async (req, res, next) => {
             { inlineData: { mimeType, data: imageBytes.toString("base64") } },
           ],
         }],
-        config: { responseMimeType: "application/json", temperature: 0.2 },
+        config: {
+          responseMimeType: "application/json",
+          temperature: 0.2,
+          httpOptions: { timeout: 120000 },
+        },
       });
 
       if (typeof geminiResponse.text !== "string") {
