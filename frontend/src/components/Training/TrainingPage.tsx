@@ -5,7 +5,6 @@ import { apiClient } from '../../services/apiClient';
 import { authService } from '../../services/authService';
 
 type TrainingItem = { _id: string; name: string; title?: string; description?: string; url: string; resourceType: string; createdAt: string };
-
 export const TrainingPage: React.FC = () => {
   const user = authService.getUser();
   const [items, setItems] = useState<TrainingItem[]>([]);

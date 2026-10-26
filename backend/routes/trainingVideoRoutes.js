@@ -5,7 +5,8 @@ import admin from "../middlewares/adminMiddleware.js";
 import TrainingVideo from "../models/TrainingVideo.js";
 
 const Router = express.Router();
-const fields = ["title", "description", "videoUrl", "thumbnailUrl", "category", "duration", "isPublished"];
+const fields = ["title", "description", "videoUrl", "mediaType", "thumbnailUrl", "category", "duration", "isPublished"];
+const mediaTypes = new Set(["image", "video", "audio"]);
 
 const validateVideoUrl = (value) => {
   if (typeof value !== "string") return false;
@@ -30,9 +31,12 @@ Router.route("/")
     }
   })
   .post(auth, admin, async (req, res) => {
-    const { title, videoUrl, category } = req.body;
+    const { title, videoUrl, category, mediaType } = req.body;
     if (typeof title !== "string" || !title.trim() || !validateVideoUrl(videoUrl) || typeof category !== "string" || !category.trim()) {
       return res.status(400).json({ status: "fail", message: "A title, valid video URL, and category are required" });
+    }
+    if (mediaType !== undefined && !mediaTypes.has(mediaType)) {
+      return res.status(400).json({ status: "fail", message: "Media type must be image, video, or audio" });
     }
 
     try {
@@ -64,6 +68,9 @@ Router.route("/:id")
     }
     if (updates.videoUrl !== undefined && !validateVideoUrl(updates.videoUrl)) {
       return res.status(400).json({ status: "fail", message: "A valid video URL is required" });
+    }
+    if (updates.mediaType !== undefined && !mediaTypes.has(updates.mediaType)) {
+      return res.status(400).json({ status: "fail", message: "Media type must be image, video, or audio" });
     }
     if (updates.category !== undefined && (typeof updates.category !== "string" || !updates.category.trim())) {
       return res.status(400).json({ status: "fail", message: "Video category is required" });

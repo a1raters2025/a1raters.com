@@ -19,6 +19,11 @@ const trainingVideoSchema = new mongoose.Schema(
       required: [true, "Video URL is required"],
       trim: true,
     },
+    mediaType: {
+      type: String,
+      enum: ["image", "video", "audio"],
+      default: "video",
+    },
     thumbnailUrl: {
       type: String,
       trim: true,

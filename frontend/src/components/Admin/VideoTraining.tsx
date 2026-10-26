@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
-import { ArrowLeft, Plus, Video, MoreVertical, Edit, Trash2, Loader2, Eye, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Video, MoreVertical, Edit, Trash2, Loader2, Eye, Search, UploadCloud } from 'lucide-react';
 import { GlassCard } from '../UI/GlassCard';
 
 interface VideoTraining {
@@ -11,6 +11,7 @@ interface VideoTraining {
   title: string;
   description: string;
   videoUrl: string;
+  mediaType?: 'image' | 'video' | 'audio';
   thumbnailUrl?: string;
   category: string;
   duration?: string;
@@ -18,6 +19,8 @@ interface VideoTraining {
   createdAt: string;
   updatedAt: string;
 }
+
+type TrainingMediaType = 'image' | 'video' | 'audio';
 
 export const VideoTraining: React.FC = () => {
   const navigate = useNavigate();
@@ -28,10 +31,20 @@ export const VideoTraining: React.FC = () => {
   const [selectedVideo, setSelectedVideo] = useState<VideoTraining | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState<'view' | 'edit' | 'create'>('view');
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    description: string;
+    videoUrl: string;
+    mediaType: TrainingMediaType;
+    thumbnailUrl: string;
+    category: string;
+    duration: string;
+    isPublished: boolean;
+  }>({
     title: '',
     description: '',
     videoUrl: '',
+    mediaType: 'video',
     thumbnailUrl: '',
     category: 'General',
     duration: '',
@@ -40,6 +53,7 @@ export const VideoTraining: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
 
   const categories = [
     'General',
@@ -94,6 +108,7 @@ export const VideoTraining: React.FC = () => {
         title: '',
         description: '',
         videoUrl: '',
+        mediaType: 'video',
         thumbnailUrl: '',
         category: 'General',
         duration: '',
@@ -105,6 +120,7 @@ export const VideoTraining: React.FC = () => {
         title: video.title,
         description: video.description,
         videoUrl: video.videoUrl,
+        mediaType: video.mediaType || 'video',
         thumbnailUrl: video.thumbnailUrl || '',
         category: video.category,
         duration: video.duration || '',
@@ -145,9 +161,49 @@ export const VideoTraining: React.FC = () => {
     }
   };
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const mediaType: TrainingMediaType | null = file.type.startsWith('image/')
+      ? 'image'
+      : file.type.startsWith('video/')
+        ? 'video'
+        : file.type.startsWith('audio/')
+          ? 'audio'
+          : null;
+    if (!mediaType) {
+      setError('Select an image, video, or audio file.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 100 * 1024 * 1024) {
+      setError('Media files must be 100MB or smaller.');
+      e.target.value = '';
+      return;
+    }
+
+    setUploadingMedia(true);
+    setError('');
+    try {
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+      uploadData.append('category', 'Admin training media');
+      uploadData.append('audience', JSON.stringify([]));
+      const response = await apiClient.upload<{ file: { url: string } }>('/files/upload', uploadData);
+      setFormData(prev => ({ ...prev, videoUrl: response.file.url, mediaType }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload training media.');
+    } finally {
+      setUploadingMedia(false);
+      e.target.value = '';
+    }
+  };
+
   const handleSave = async () => {
     if (!formData.title || !formData.videoUrl) {
-      setError('Title and Video URL are required.');
+      setError('Title and a media URL or uploaded file are required.');
       return;
     }
 
@@ -232,8 +288,8 @@ export const VideoTraining: React.FC = () => {
               <ArrowLeft size={24} />
             </motion.button>
             <div>
-              <h1 className="text-2xl font-bold text-white">Video Training</h1>
-              <p className="text-slate-400 text-sm">Manage training videos for raters</p>
+              <h1 className="text-2xl font-bold text-white">Training Media</h1>
+              <p className="text-slate-400 text-sm">Manage image, video, and audio training for raters</p>
             </div>
           </div>
           <motion.button
@@ -241,7 +297,7 @@ export const VideoTraining: React.FC = () => {
             whileHover={{ scale: 1.03 }}
             className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-purple-500/30 transition-all"
           >
-            <Plus size={16} /> Add Video
+            <Plus size={16} /> Add Media
           </motion.button>
         </motion.div>
 
@@ -256,7 +312,7 @@ export const VideoTraining: React.FC = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
                   type="text"
-                  placeholder="Search videos..."
+                  placeholder="Search training media..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
@@ -273,7 +329,7 @@ export const VideoTraining: React.FC = () => {
                 </select>
               </div>
               <div className="text-sm text-slate-400 flex items-center">
-                {filteredVideos.length} of {videos.length} videos
+                {filteredVideos.length} of {videos.length} items
               </div>
             </div>
 
@@ -284,8 +340,8 @@ export const VideoTraining: React.FC = () => {
             ) : filteredVideos.length === 0 ? (
               <div className="text-center py-12 text-slate-500">
                 <Video size={48} className="mx-auto mb-4 text-slate-600" />
-                <p className="text-lg">No training videos found</p>
-                <p className="text-sm mt-1">Click "Add Video" to create your first training video</p>
+                <p className="text-lg">No training media found</p>
+                <p className="text-sm mt-1">Click "Add Media" to publish your first training item</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -298,9 +354,9 @@ export const VideoTraining: React.FC = () => {
                     className="group relative bg-white/5 rounded-xl overflow-hidden border border-white/5 hover:border-white/10 transition-all"
                   >
                     <div className="relative aspect-video bg-slate-800">
-                      {video.thumbnailUrl ? (
+                      {video.thumbnailUrl || video.mediaType === 'image' ? (
                         <img
-                          src={video.thumbnailUrl}
+                          src={video.thumbnailUrl || video.videoUrl}
                           alt={video.title}
                           className="w-full h-full object-cover"
                         />
@@ -382,7 +438,7 @@ export const VideoTraining: React.FC = () => {
             >
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-white">
-                  {modalMode === 'create' ? 'Add Training Video' : modalMode === 'edit' ? 'Edit Video' : 'Video Details'}
+                  {modalMode === 'create' ? 'Add Training Media' : modalMode === 'edit' ? 'Edit Training Media' : 'Training Media Details'}
                 </h2>
                 <button
                   onClick={() => setShowModal(false)}
@@ -411,22 +467,43 @@ export const VideoTraining: React.FC = () => {
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
-                    placeholder="Video title"
+                    placeholder="Training media title"
                     disabled={modalMode === 'view'}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Video URL</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1.5">Media URL</label>
                   <input
                     type="url"
                     required
                     value={formData.videoUrl}
                     onChange={(e) => setFormData({ ...formData, videoUrl: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none"
-                    placeholder="https://example.com/video.mp4 or YouTube/Vimeo URL"
+                    placeholder="Upload a file or enter a media URL"
                     disabled={modalMode === 'view'}
                   />
+                </div>
+
+                <div>
+                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase text-slate-400">
+                    <UploadCloud size={14} /> Upload image, video, or audio
+                  </label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input
+                      type="file"
+                      accept="image/*,video/*,audio/*"
+                      onChange={(e) => void handleMediaUpload(e)}
+                      disabled={modalMode === 'view' || uploadingMedia}
+                      className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white text-sm file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-500 file:px-4 file:py-2 file:font-semibold file:text-white disabled:opacity-50"
+                    />
+                    {uploadingMedia && (
+                      <span className="flex shrink-0 items-center gap-2 text-sm text-indigo-300">
+                        <Loader2 size={16} className="animate-spin" /> Uploading...
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">Maximum file size: 100MB. Uploaded files replace the media URL above.</p>
                 </div>
 
                 <div>
@@ -499,7 +576,7 @@ export const VideoTraining: React.FC = () => {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none h-24 resize-none"
-                    placeholder="Video description..."
+                    placeholder="Training media description..."
                     disabled={modalMode === 'view'}
                   />
                 </div>
@@ -544,9 +621,9 @@ export const VideoTraining: React.FC = () => {
                   {modalMode !== 'view' && (
                     <motion.button
                       type="submit"
-                      disabled={saving}
-                      whileHover={!saving ? { scale: 1.02, y: -1 } : undefined}
-                      whileTap={!saving ? { scale: 0.98 } : undefined}
+                      disabled={saving || uploadingMedia}
+                      whileHover={!saving && !uploadingMedia ? { scale: 1.02, y: -1 } : undefined}
+                      whileTap={!saving && !uploadingMedia ? { scale: 0.98 } : undefined}
                       className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold shadow-lg shadow-purple-500/30 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all"
                     >
                       {saving ? (
@@ -557,7 +634,7 @@ export const VideoTraining: React.FC = () => {
                       ) : (
                         <>
                           <Video size={16} />
-                          {modalMode === 'create' ? 'Create Video' : 'Save Changes'}
+                          {modalMode === 'create' ? 'Create Training Media' : 'Save Changes'}
                         </>
                       )}
                     </motion.button>
