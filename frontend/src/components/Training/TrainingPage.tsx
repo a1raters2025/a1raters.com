@@ -12,6 +12,7 @@ type TrainingItem = {
   url: string;
   resourceType: string;
   createdAt: string;
+  categories: string[];
 };
 type AdminTrainingItem = {
   _id: string;
@@ -20,10 +21,27 @@ type AdminTrainingItem = {
   videoUrl: string;
   mediaType?: 'image' | 'video' | 'audio';
   createdAt: string;
+  categories?: string[];
+  category?: string;
 };
+
+const trainingCategories = [
+  'App Store',
+  'Mac App Store',
+  'Video',
+  'Video Hint',
+  'Podcast',
+  'Music',
+  'AI Assist',
+  'App Image Accessibility',
+  'Manual Invoice',
+  'App Store Image',
+];
+
 export const TrainingPage: React.FC = () => {
   const user = authService.getUser();
   const [items, setItems] = useState<TrainingItem[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState('All categories');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -42,8 +60,12 @@ export const TrainingPage: React.FC = () => {
         url: item.videoUrl,
         resourceType: item.mediaType === 'audio' ? 'raw' : item.mediaType || 'video',
         createdAt: item.createdAt,
+        categories: item.categories || (item.category && item.category !== 'General' ? [item.category] : ['General']),
       }));
-      setItems([...videos, ...filesResponse.training]);
+      setItems([
+        ...videos,
+        ...filesResponse.training.map((item) => ({ ...item, categories: ['General'] })),
+      ]);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to load training.');
     } finally {
@@ -61,14 +83,31 @@ export const TrainingPage: React.FC = () => {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    if (!data.get('file')) return;
+    const file = data.get('file');
+    const categories = data.getAll('categories').map(String);
+    if (!(file instanceof File) || file.size === 0 || categories.length === 0) {
+      setMessage('Choose a media file and at least one category.');
+      return;
+    }
     setUploading(true);
     setMessage('');
     try {
-      data.set('audience', JSON.stringify(['user', 'client']));
-      await apiClient.upload('/files/upload', data);
+      const uploadData = new FormData();
+      uploadData.append('file', file);
+      uploadData.append('category', 'Admin training media');
+      uploadData.append('audience', JSON.stringify([]));
+      const uploadResponse = await apiClient.upload<{ file: { url: string } }>('/files/upload', uploadData);
+      await apiClient.post('/admin/videos', {
+        title: data.get('title'),
+        description: data.get('description'),
+        videoUrl: uploadResponse.file.url,
+        mediaType: file.type.startsWith('image/') ? 'image' : file.type.startsWith('audio/') ? 'audio' : 'video',
+        category: categories[0],
+        categories,
+        isPublished: true,
+      });
       form.reset();
-      setMessage('Training video published successfully.');
+      setMessage('Training media published successfully.');
       await loadTraining();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Upload failed.');
@@ -76,6 +115,10 @@ export const TrainingPage: React.FC = () => {
       setUploading(false);
     }
   };
+
+  const visibleItems = selectedCategory === 'All categories'
+    ? items
+    : items.filter((item) => item.categories.includes(selectedCategory));
 
   return (
     <div className="page-stack">
@@ -118,8 +161,8 @@ export const TrainingPage: React.FC = () => {
               <UploadCloud size={23} className="text-indigo-300" />
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-white">Publish a training video</h2>
-              <p className="text-sm text-slate-400 mt-1">Videos are securely stored in Cloudinary and shared with raters and clients.</p>
+              <h2 className="text-lg font-semibold text-white">Publish category training</h2>
+              <p className="text-sm text-slate-400 mt-1">Upload an image, video, or audio guide and choose the task categories it supports.</p>
             </div>
             <div className="flex flex-col gap-3 w-full sm:w-auto">
               <div className="flex-1 min-w-0">
@@ -141,11 +184,22 @@ export const TrainingPage: React.FC = () => {
                 <input
                   name="file"
                   type="file"
-                  accept="video/mp4,video/quicktime,video/x-msvideo"
+                  accept="image/*,video/*,audio/*"
                   required
                   className="w-full px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10 transition-all text-sm outline-none file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-gradient-to-r file:from-indigo-500 file:to-violet-600 file:text-white hover:file:from-indigo-600 hover:file:to-violet-700 cursor-pointer"
                 />
               </div>
+              <fieldset className="rounded-xl border border-white/10 p-3">
+                <legend className="px-1 text-xs font-medium text-slate-300">Categories</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {trainingCategories.map((category) => (
+                    <label key={category} className="flex items-center gap-2 text-xs text-slate-300">
+                      <input type="checkbox" name="categories" value={category} />
+                      {category}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
             </div>
             <motion.button
               type="submit"
@@ -154,7 +208,7 @@ export const TrainingPage: React.FC = () => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
             >
-              {uploading ? 'Publishing...' : 'Publish video'}
+              {uploading ? 'Publishing...' : 'Publish training'}
             </motion.button>
           </div>
         </motion.form>
@@ -185,12 +239,35 @@ export const TrainingPage: React.FC = () => {
           <p>Your team training videos will appear here.</p>
         </div>
       ) : (
+        <>
+        <section aria-label="Training categories" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {['All categories', ...trainingCategories, ...(items.some((item) => item.categories.includes('General')) ? ['General'] : [])].map((category) => {
+            const count = category === 'All categories'
+              ? items.length
+              : items.filter((item) => item.categories.includes(category)).length;
+            return (
+              <button
+                key={category}
+                type="button"
+                onClick={() => setSelectedCategory(category)}
+                aria-pressed={selectedCategory === category}
+                className={`rounded-xl border p-4 text-left transition-colors ${selectedCategory === category ? 'border-indigo-400 bg-indigo-500/20' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+              >
+                <span className="block font-semibold text-white">{category}</span>
+                <span className="mt-1 block text-xs text-slate-400">{count} training item{count === 1 ? '' : 's'}</span>
+              </button>
+            );
+          })}
+        </section>
+        {visibleItems.length === 0 ? (
+          <div className="empty-state"><h2>No training in this category</h2><p>Choose another category or check back later.</p></div>
+        ) : (
         <motion.section
           className="training-grid-responsive"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          {items.map((item, idx) => (
+          {visibleItems.map((item, idx) => (
             <motion.article
               key={item._id}
               className="training-card"
@@ -219,6 +296,8 @@ export const TrainingPage: React.FC = () => {
             </motion.article>
           ))}
         </motion.section>
+        )}
+        </>
       )}
     </div>
   );

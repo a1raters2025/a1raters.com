@@ -35,19 +35,7 @@ const withId = (video) => ({ ...video, id: video._id.toString() });
 Router.route("/")
   .get(auth, async (req, res) => {
     try {
-      const filter = req.user.role === "admin"
-        ? {}
-        : {
-            isPublished: true,
-            $or: [
-              { categories: { $in: req.user.categories || [] } },
-              { category: { $in: req.user.categories || [] } },
-              {
-                category: "General",
-                $or: [{ categories: { $exists: false } }, { categories: { $size: 0 } }],
-              },
-            ],
-          };
+      const filter = req.user.role === "admin" ? {} : { isPublished: true };
       const videos = await TrainingVideo.find(filter).sort({ createdAt: -1 }).lean();
       res.status(200).json({ status: "success", data: videos.map(withId) });
     } catch (error) {
