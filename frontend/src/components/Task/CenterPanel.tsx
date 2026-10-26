@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import type { TaskData } from '../../services/dataService';
 import { ExternalLink } from 'lucide-react';
 import { GlassCard } from '../UI/GlassCard';
+import { MediaFullscreenViewer } from '../UI/MediaFullscreenViewer';
 
 interface CenterPanelProps {
   task: TaskData;
@@ -17,14 +18,22 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ task }) => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <motion.img
-          src={task.result.imageUrl || 'https://placehold.co/100'}
-          alt={task.result.title}
-          className="w-24 h-24 rounded-xl object-cover bg-gray-100 flex-shrink-0 mb-4 sm:mb-0"
-          whileHover={{ scale: 1.05 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 17 }}
-          loading="lazy"
-        />
+        <div className="mb-4 w-24 flex-shrink-0 sm:mb-0">
+          <MediaFullscreenViewer
+            src={task.result.imageUrl || 'https://placehold.co/100'}
+            type="image"
+            title={task.result.title}
+          >
+            <motion.img
+              src={task.result.imageUrl || 'https://placehold.co/100'}
+              alt={task.result.title}
+              className="h-24 w-24 rounded-xl bg-gray-100 object-cover"
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 17 }}
+              loading="lazy"
+            />
+          </MediaFullscreenViewer>
+        </div>
         <div className="flex-1 min-w-0">
           <motion.h2
             className="text-2xl font-semibold text-indigo-300 mb-1"

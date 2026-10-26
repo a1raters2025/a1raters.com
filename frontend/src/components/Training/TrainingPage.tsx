@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, CheckCircle2, Film, UploadCloud } from 'lucide-react';
 import { apiClient } from '../../services/apiClient';
 import { authService } from '../../services/authService';
+import { MediaFullscreenViewer } from '../UI/MediaFullscreenViewer';
 
 type TrainingItem = {
   _id: string;
@@ -278,11 +279,15 @@ export const TrainingPage: React.FC = () => {
             >
               <div className="video-frame">
                 {item.resourceType === 'image' ? (
-                  <img src={item.url} alt={item.title || item.name} />
+                  <MediaFullscreenViewer src={item.url} type="image" title={item.title || item.name}>
+                    <img src={item.url} alt={item.title || item.name} />
+                  </MediaFullscreenViewer>
                 ) : item.resourceType === 'raw' ? (
                   <audio controls preload="metadata" src={item.url} />
                 ) : (
-                  <video controls preload="metadata" src={item.url} />
+                  <MediaFullscreenViewer src={item.url} type="video" title={item.title || item.name}>
+                    <video controls preload="metadata" src={item.url} />
+                  </MediaFullscreenViewer>
                 )}
               </div>
               <div className="training-card-body">
