@@ -139,6 +139,11 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
           language: 'English',
           searchLinks: [
             { name: 'Google', url: `https://www.google.com/search?q=${encodeURIComponent(formState.query)}` },
+            { name: 'Google Play', url: `https://play.google.com/store/search?q=${encodeURIComponent(formState.query)}&c=apps` },
+            { name: 'IMDb', url: `https://www.imdb.com/find/?q=${encodeURIComponent(formState.query)}` },
+            { name: 'Spotify', url: `https://open.spotify.com/search/${encodeURIComponent(formState.query)}` },
+            { name: 'Translate', url: `https://translate.google.com/?sl=auto&tl=en&text=${encodeURIComponent(formState.query)}` },
+            { name: 'YouTube', url: `https://www.youtube.com/results?search_query=${encodeURIComponent(formState.query)}` },
           ],
         },
         result: {
