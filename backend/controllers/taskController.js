@@ -203,7 +203,7 @@ export const analyzeTaskImage = async (req, res, next) => {
 
       const ai = new GoogleGenAI({ apiKey: geminiApiKey });
       const geminiResponse = await ai.models.generateContent({
-        model: process.env.GEMINI_MODEL || "gemini-3.8-flash",
+        model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
         contents: [{
           role: "user",
           parts: [
