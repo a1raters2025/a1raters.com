@@ -214,7 +214,10 @@ export const analyzeTaskImage = async (req, res, next) => {
         config: {
           responseMimeType: "application/json",
           temperature: 0.2,
-          httpOptions: { timeout: 120000 },
+          httpOptions: {
+            timeout: 180000,
+            retryOptions: { attempts: 1 },
+          },
         },
       });
 
@@ -226,13 +229,23 @@ export const analyzeTaskImage = async (req, res, next) => {
       const geminiMessage = geminiError instanceof Error
         ? geminiError.message
         : "Unknown provider error";
+      const geminiCause = geminiError instanceof Error && geminiError.cause instanceof Error
+        ? geminiError.cause
+        : null;
       const redactedGeminiMessage = geminiApiKey
         ? geminiMessage.replaceAll(geminiApiKey, "[REDACTED]")
         : geminiMessage;
       console.error("[task-image-analysis] Gemini failed", {
+        name: geminiError instanceof Error ? geminiError.name : "UnknownError",
         status: geminiError?.status || geminiError?.statusCode,
         code: geminiError?.code,
         message: redactedGeminiMessage,
+        causeName: geminiCause?.name,
+        causeMessage: geminiCause
+          ? geminiApiKey
+            ? geminiCause.message.replaceAll(geminiApiKey, "[REDACTED]")
+            : geminiCause.message
+          : undefined,
       });
       const openAiMessage = openAiError instanceof Error
         ? openAiApiKey
@@ -240,8 +253,8 @@ export const analyzeTaskImage = async (req, res, next) => {
           : openAiError.message
         : "OpenAI image analysis failed";
       const message = openAiError
-        ? `OpenAI and Gemini image analysis failed. OpenAI: ${openAiMessage.slice(0, 300)}. Gemini: ${redactedGeminiMessage.slice(0, 300)}.`
-        : `Gemini image analysis failed: ${redactedGeminiMessage}`;
+        ? `OpenAI and Gemini image analysis failed. OpenAI: ${openAiMessage.slice(0, 300)}. Gemini (${geminiError instanceof Error ? geminiError.name : "error"}): ${redactedGeminiMessage.slice(0, 300)}.`
+        : `Gemini image analysis failed (${geminiError instanceof Error ? geminiError.name : "error"}): ${redactedGeminiMessage}`;
       next(new AppError(message, 502));
     }
   } catch (err) {
