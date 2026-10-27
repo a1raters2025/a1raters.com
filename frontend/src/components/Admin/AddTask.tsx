@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Upload, Save, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Upload, Save, CheckCircle, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { dataService, type TaskData } from '../../services/dataService';
 import { apiClient } from '../../services/apiClient';
 import { GlassCard } from '../UI/GlassCard';
@@ -15,10 +15,12 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
   const [category, setCategory] = useState('App Store');
   const [subCategory, setSubCategory] = useState('App Store Search Result');
-  const [mode, setMode] = useState<'practice' | 'test'>('practice');
+  const [mode, setMode] = useState<'practice' | 'test' | 'both'>('both');
   const [deadlineAt, setDeadlineAt] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientPassword, setClientPassword] = useState('');
+  const [confirmClientPassword, setConfirmClientPassword] = useState('');
+  const [showClientPasswords, setShowClientPasswords] = useState(false);
 
   const [formState, setFormState] = useState({
     query: '',
@@ -111,6 +113,11 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       setParsingStatus('error');
       return;
     }
+    if (clientPassword !== confirmClientPassword) {
+      setErrorMessage('Client password and confirmation must match.');
+      setParsingStatus('error');
+      return;
+    }
 
     try {
       const deadline = deadlineAt ? new Date(deadlineAt) : null;
@@ -152,6 +159,7 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
       await dataService.saveTask(newTask, { clientEmail: clientEmail.trim().toLowerCase(), clientPassword });
       setClientPassword('');
+      setConfirmClientPassword('');
 
       setParsingStatus('success');
       setTimeout(() => setParsingStatus('idle'), 3000);
@@ -217,22 +225,37 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1">Mode</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-1">Rating lane</label>
                   <select
                     value={mode}
-                    onChange={(e) => setMode(e.target.value as 'practice' | 'test')}
+                    onChange={(e) => setMode(e.target.value as 'practice' | 'test' | 'both')}
                     className="w-full p-2.5 rounded-xl border border-white/10 bg-white/5 text-white focus:border-indigo-400 transition-all text-sm outline-none appearance-none"
                   >
                     <option value="practice">Practice</option>
                     <option value="test">Test</option>
+                    <option value="both">Practice and test</option>
                   </select>
                 </div>
                 <div>
                   <h3 className="mb-2 text-sm font-semibold text-slate-200">Client sign-in</h3>
                   <label className="mb-1 block text-xs text-slate-400">Client email</label>
                   <input type="email" required value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} className="mb-3 w-full rounded-xl border border-white/10 bg-white/5 p-2.5 text-sm text-white outline-none focus:border-indigo-400" placeholder="client@example.com" />
-                  <label className="mb-1 block text-xs text-slate-400">Client password</label>
-                  <input type="password" required minLength={6} value={clientPassword} onChange={(e) => setClientPassword(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/5 p-2.5 text-sm text-white outline-none focus:border-indigo-400" placeholder="Uppercase, lowercase, number and symbol" />
+                  <div className="mb-1 flex items-center justify-between">
+                    <label htmlFor="client-password" className="block text-xs text-slate-400">Client password</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowClientPasswords((visible) => !visible)}
+                      aria-label={showClientPasswords ? 'Hide client passwords' : 'Show client passwords'}
+                      aria-pressed={showClientPasswords}
+                      className="inline-flex items-center gap-1 text-xs text-indigo-300 hover:text-indigo-200"
+                    >
+                      {showClientPasswords ? <EyeOff size={14} /> : <Eye size={14} />}
+                      {showClientPasswords ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                  <input id="client-password" type={showClientPasswords ? 'text' : 'password'} required minLength={6} value={clientPassword} onChange={(e) => setClientPassword(e.target.value)} className="mb-3 w-full rounded-xl border border-white/10 bg-white/5 p-2.5 text-sm text-white outline-none focus:border-indigo-400" placeholder="Uppercase, lowercase, number and symbol" />
+                  <label htmlFor="confirm-client-password" className="mb-1 block text-xs text-slate-400">Confirm client password</label>
+                  <input id="confirm-client-password" type={showClientPasswords ? 'text' : 'password'} required minLength={6} value={confirmClientPassword} onChange={(e) => setConfirmClientPassword(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/5 p-2.5 text-sm text-white outline-none focus:border-indigo-400" placeholder="Re-enter client password" />
                 </div>
               </div>
             </GlassCard>
