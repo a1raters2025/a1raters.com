@@ -666,6 +666,71 @@ Router.get(
 );
 
 Router.patch(
+    "/payments/raters/:userId/status",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        const { userId } = req.params;
+        const { paymentStatus, reason = "" } = req.body;
+        const validStatuses = ["pending", "processing", "paid", "failed"];
+        if (!mongoose.isValidObjectId(userId)) {
+            return res.status(404).json({ status: "fail", message: "Rater not found" });
+        }
+        if (!validStatuses.includes(paymentStatus)) {
+            return res.status(400).json({ status: "fail", message: "Choose a valid payment status" });
+        }
+        if (typeof reason !== "string" || reason.length > 500) {
+            return res.status(400).json({ status: "fail", message: "Reason must be 500 characters or fewer" });
+        }
+
+        const rater = await User.findOne({ _id: userId, role: "user" })
+            .select("userName email paymentStatus totalEarned totalPaid lastPaymentDate pendingPayoutReference");
+        if (!rater) {
+            return res.status(404).json({ status: "fail", message: "Rater not found" });
+        }
+
+        const previousStatus = rater.paymentStatus || "pending";
+        rater.paymentStatus = paymentStatus;
+        if (paymentStatus === "paid") rater.lastPaymentDate = new Date();
+        await rater.save();
+
+        await logActivity({
+            userId: req.user._id,
+            userName: req.user.userName || req.user.email,
+            userRole: req.user.role,
+            action: "payment_processed",
+            resourceType: "user",
+            resourceId: userId,
+            path: req.path,
+            method: req.method,
+            statusCode: 200,
+            metadata: {
+                action: "manual_payment_status_override",
+                previousStatus,
+                paymentStatus,
+                reason: reason.trim(),
+                pendingPayoutReference: rater.pendingPayoutReference || null,
+            },
+        });
+
+        emitPaymentDetailsChanged(userId);
+        emitAdminUpdate({
+            title: "Payment status updated",
+            message: `An administrator changed ${rater.userName || rater.email}'s payment status to ${paymentStatus}.`,
+            type: paymentStatus === "paid" ? "success" : "info",
+            targetUserId: userId,
+            targetRoles: ["admin", "user"],
+        });
+
+        res.status(200).json({
+            status: "success",
+            message: "Payment status updated manually. Payment totals and Paystack records were not changed.",
+            data: rater,
+        });
+    })
+);
+
+Router.patch(
     "/payments/raters/:userId/payment-details/review",
     auth,
     admin,

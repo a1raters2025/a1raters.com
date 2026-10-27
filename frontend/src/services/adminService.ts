@@ -315,6 +315,17 @@ export const adminService = {
     return apiClient.get<{ status: string; data: RaterPayment }>(`/admin/payments/raters/${userId}`);
   },
 
+  async updateRaterPaymentStatus(
+    userId: string,
+    paymentStatus: RaterPayment['paymentStatus'],
+    reason = '',
+  ): Promise<{ status: string; message: string; data: RaterPayment }> {
+    return apiClient.patch<{ status: string; message: string; data: RaterPayment }>(
+      `/admin/payments/raters/${userId}/status`,
+      { paymentStatus, reason },
+    );
+  },
+
   async getPaymentDetailsApprovals(page = 1, limit = 100): Promise<PaymentsResponse> {
     return apiClient.get<PaymentsResponse>(`/admin/payment-details/approvals?page=${page}&limit=${limit}`);
   },

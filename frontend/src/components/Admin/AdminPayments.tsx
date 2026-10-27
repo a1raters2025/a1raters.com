@@ -45,6 +45,7 @@ export const AdminPayments: React.FC = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [processingPayments, setProcessingPayments] = useState<Set<string>>(new Set());
+    const [paymentStatusEdits, setPaymentStatusEdits] = useState<Record<string, RaterPayment['paymentStatus']>>({});
     const [showDetailsModal, setShowDetailsModal] = useState(false);
     const [selectedRater, setSelectedRater] = useState<RaterPayment | null>(null);
 
@@ -141,6 +142,36 @@ export const AdminPayments: React.FC = () => {
         } catch (err) {
             console.error('Failed to record manual payment:', err);
             alert(err instanceof Error ? err.message : 'Failed to record manual payment');
+        } finally {
+            setProcessingPayments(prev => {
+                const next = new Set(prev);
+                next.delete(rater._id);
+                return next;
+            });
+        }
+    };
+
+    const handleUpdatePaymentStatus = async (rater: RaterPayment) => {
+        const paymentStatus = paymentStatusEdits[rater._id];
+        if (!paymentStatus || paymentStatus === rater.paymentStatus) return;
+        const reason = window.prompt(
+            `Manually change ${rater.userName}'s payment status from ${rater.paymentStatus || 'pending'} to ${paymentStatus}. This does not change paid totals or Paystack records. Optional reason:`,
+            '',
+        );
+        if (reason === null) return;
+
+        setProcessingPayments(prev => new Set(prev).add(rater._id));
+        try {
+            await adminService.updateRaterPaymentStatus(rater._id, paymentStatus, reason);
+            setPaymentStatusEdits(prev => {
+                const next = { ...prev };
+                delete next[rater._id];
+                return next;
+            });
+            await fetchRaters();
+        } catch (err) {
+            console.error('Failed to manually update payment status:', err);
+            alert(err instanceof Error ? err.message : 'Failed to update payment status');
         } finally {
             setProcessingPayments(prev => {
                 const next = new Set(prev);
@@ -309,6 +340,33 @@ export const AdminPayments: React.FC = () => {
                                                 <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs ${STATUS_COLORS[rater.paymentStatus] || STATUS_COLORS.pending}`}>
                                                     {STATUS_ICONS[rater.paymentStatus] || STATUS_ICONS.pending}
                                                     {rater.paymentStatus || 'pending'}
+                                                </div>
+                                                <div className="mt-2 flex items-center gap-1.5">
+                                                    <select
+                                                        aria-label={`Set payment status for ${rater.userName}`}
+                                                        value={paymentStatusEdits[rater._id] || rater.paymentStatus || 'pending'}
+                                                        onChange={(event) => setPaymentStatusEdits(prev => ({
+                                                            ...prev,
+                                                            [rater._id]: event.target.value as RaterPayment['paymentStatus'],
+                                                        }))}
+                                                        className="rounded border border-white/10 bg-slate-900 px-2 py-1 text-xs text-white"
+                                                    >
+                                                        <option value="pending">Pending</option>
+                                                        <option value="processing">Processing</option>
+                                                        <option value="paid">Paid</option>
+                                                        <option value="failed">Failed</option>
+                                                    </select>
+                                                    {paymentStatusEdits[rater._id] && paymentStatusEdits[rater._id] !== rater.paymentStatus && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => void handleUpdatePaymentStatus(rater)}
+                                                            disabled={processingPayments.has(rater._id)}
+                                                            className="rounded bg-indigo-500/20 px-2 py-1 text-xs text-indigo-200 hover:bg-indigo-500/30 disabled:opacity-50"
+                                                            title="Manually override status; payment totals and Paystack records are unchanged"
+                                                        >
+                                                            {processingPayments.has(rater._id) ? 'Saving…' : 'Save'}
+                                                        </button>
+                                                    )}
                                                 </div>
                                                 {rater.paymentDetails?.method === 'manual' && (
                                                     <div className="mt-1 text-xs text-amber-300">
