@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { apiClient } from '../../services/apiClient';
 import { APP_CONFIG } from '../../config/appConfig';
-import { ArrowLeft, Save, Loader2, Shield, Globe, Palette, Database, Key } from 'lucide-react';
+import { adminService } from '../../services/adminService';
+import { ArrowLeft, Save, Loader2, Shield, Globe, Palette, Database, Key, Trash2 } from 'lucide-react';
 import { GlassCard } from '../UI/GlassCard';
 
 interface SystemStats {
@@ -41,7 +42,9 @@ export const AdminSettings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'general' | 'security' | 'integrations' | 'appearance' | 'system'>('general');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageIsError, setMessageIsError] = useState(false);
   const [stats, setStats] = useState<SystemStats | null>(null);
 
   const [settings, setSettings] = useState<AdminSettings>({
@@ -118,10 +121,12 @@ export const AdminSettings: React.FC = () => {
       value => value !== '' && Number.isFinite(value),
     )) {
       setMessage('Enter valid numbers for file size, session timeout, and SMTP port.');
+      setMessageIsError(true);
       return;
     }
     setSaving(true);
     setMessage('');
+    setMessageIsError(false);
     try {
       const response = await apiClient.post<{ status: string; message?: string }>('/admin/settings', {
         ...settings,
@@ -134,11 +139,44 @@ export const AdminSettings: React.FC = () => {
         setTimeout(() => setMessage(''), 3000);
       } else {
         setMessage(response.message || 'Failed to save settings');
+        setMessageIsError(true);
       }
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to save settings');
+      setMessageIsError(true);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (clearing || !window.confirm(
+      'This permanently deletes all local reports, invoices, payouts, tasks, test histories, files, training videos, audit/activity logs, and non-admin users. Admin accounts and site settings are retained; admin payment details are cleared. The clear is blocked while payouts are in flight. Cloud-stored uploads and external payment-provider records are not deleted or reversed. Continue?',
+    )) {
+      return;
+    }
+
+    if (window.prompt('Type CLEAR ALL DATA to confirm this permanent deletion:') !== 'CLEAR ALL DATA') {
+      return;
+    }
+
+    setClearing(true);
+    setMessage('');
+    setMessageIsError(false);
+    try {
+      const response = await adminService.clearAllData();
+      if (response.status !== 'success') {
+        throw new Error(response.message || 'Failed to clear platform data');
+      }
+
+      const deletedCount = Object.values(response.data.deletedRecords).reduce((total, count) => total + count, 0);
+      setMessage(`Cleared ${deletedCount} local record(s). Admin accounts and site settings were retained.`);
+      await fetchStats();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Failed to clear platform data');
+      setMessageIsError(true);
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -523,14 +561,20 @@ export const AdminSettings: React.FC = () => {
         <h3 className="text-lg font-semibold text-white mb-4">Danger Zone</h3>
         <div className="flex items-center justify-between p-4 rounded-xl bg-rose-500/10 border border-rose-500/20">
           <div>
-            <div className="font-medium text-rose-300">Reset Platform</div>
-            <div className="text-sm text-slate-400">Delete all users, tasks, reports, and settings. This cannot be undone.</div>
+            <div className="font-medium text-rose-300">Clear All Platform Data</div>
+            <div className="text-sm text-slate-400">
+              Permanently delete local records, histories, payment details, and non-admin users. Admin accounts and site settings remain.
+            </div>
           </div>
           <motion.button
+            type="button"
             whileHover={{ scale: 1.05 }}
+            onClick={() => void handleClearAll()}
+            disabled={clearing || loading}
             className="px-4 py-2 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 font-medium transition-all"
           >
-            Reset Everything
+            {clearing ? <Loader2 size={16} className="inline animate-spin mr-2" /> : <Trash2 size={16} className="inline mr-2" />}
+            {clearing ? 'Clearing...' : 'Clear All'}
           </motion.button>
         </div>
       </div>
@@ -600,12 +644,21 @@ export const AdminSettings: React.FC = () => {
             <GlassCard className="flex-1 p-6 min-w-0" delay={0.2}>
               {message && (
                 <motion.div
-                  className="mb-6 p-3 bg-emerald-500/20 border border-emerald-500/20 text-emerald-300 text-sm rounded-lg flex items-center justify-between"
+                  className={`mb-6 p-3 border text-sm rounded-lg flex items-center justify-between ${
+                    messageIsError
+                      ? 'bg-rose-500/20 border-rose-500/20 text-rose-300'
+                      : 'bg-emerald-500/20 border-emerald-500/20 text-emerald-300'
+                  }`}
                   initial={{ opacity: 0, y: -4 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
                   <span>{message}</span>
-                  <button onClick={() => setMessage('')} className="text-emerald-300 hover:text-emerald-200">×</button>
+                  <button
+                    onClick={() => setMessage('')}
+                    className={messageIsError ? 'text-rose-300 hover:text-rose-200' : 'text-emerald-300 hover:text-emerald-200'}
+                  >
+                    ×
+                  </button>
                 </motion.div>
               )}
 

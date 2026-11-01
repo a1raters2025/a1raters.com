@@ -291,6 +291,18 @@ export const adminService = {
     return apiClient.delete<{ status: string; message: string; data: { deletedCount: number } }>('/admin/users/unapproved');
   },
 
+  async clearAllData(): Promise<{
+    status: string;
+    message: string;
+    data: { deletedRecords: Record<string, number>; adminPaymentDetailsCleared: number };
+  }> {
+    return apiClient.post<{
+      status: string;
+      message: string;
+      data: { deletedRecords: Record<string, number>; adminPaymentDetailsCleared: number };
+    }>('/admin/system/clear-all', { confirmation: 'CLEAR ALL DATA' });
+  },
+
   async getSettings(): Promise<{ status: string; data: Record<string, unknown> }> {
     return apiClient.get<{ status: string; data: Record<string, unknown> }>('/admin/settings');
   },

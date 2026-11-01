@@ -4,10 +4,15 @@ import crypto from "crypto";
 import auth from "../middlewares/auth.js";
 import admin from "../middlewares/adminMiddleware.js";
 import { ActivityLog, logActivity } from "../models/activityLog.js";
+import AuditLog from "../models/AuditLog.js";
 import { User } from "../models/userSchema.js";
 import { Payout } from "../models/payout.js";
 import Invoice from "../models/Invoice.js";
 import Report from "../models/Report.js";
+import Task from "../models/Task.js";
+import TestHistory from "../models/TestHistory.js";
+import File from "../models/File.js";
+import TrainingVideo from "../models/TrainingVideo.js";
 import {
   initializePaystackTransfer,
   verifyPaystackTransfer,
@@ -301,6 +306,89 @@ Router.delete(
             status: "success",
             message: `Removed ${result.deletedCount} unapproved user(s)`,
             data: { deletedCount: result.deletedCount },
+        });
+    })
+);
+
+Router.post(
+    "/system/clear-all",
+    auth,
+    admin,
+    asyncHandler(async (req, res) => {
+        if (req.body?.confirmation !== "CLEAR ALL DATA") {
+            return res.status(400).json({
+                status: "fail",
+                message: 'Confirmation must exactly match "CLEAR ALL DATA"',
+            });
+        }
+
+        const inFlightPayouts = await Payout.countDocuments({
+            status: { $in: ["initiating", "processing", "unknown"] },
+        });
+        if (inFlightPayouts > 0) {
+            return res.status(409).json({
+                status: "fail",
+                message: `Resolve or reconcile the ${inFlightPayouts} in-flight payout(s) before clearing platform data`,
+            });
+        }
+
+        const session = await mongoose.startSession();
+        const deletedRecords = {};
+        let adminPaymentDetailsCleared = 0;
+
+        try {
+            await session.withTransaction(async () => {
+                const modelsToClear = [
+                    ["reports", Report],
+                    ["invoices", Invoice],
+                    ["payouts", Payout],
+                    ["tasks", Task],
+                    ["testHistories", TestHistory],
+                    ["files", File],
+                    ["trainingVideos", TrainingVideo],
+                    ["auditLogs", AuditLog],
+                ];
+
+                for (const [name, Model] of modelsToClear) {
+                    const result = await Model.deleteMany({}).session(session);
+                    deletedRecords[name] = result.deletedCount;
+                }
+
+                const usersResult = await User.deleteMany({ role: { $ne: "admin" } }).session(session);
+                deletedRecords.users = usersResult.deletedCount;
+
+                const adminsResult = await User.updateMany(
+                    { role: "admin" },
+                    {
+                        $unset: { paymentDetails: 1 },
+                        $set: {
+                            totalEarned: 0,
+                            totalPaid: 0,
+                            paymentStatus: "pending",
+                            pendingPayoutReference: null,
+                            pendingPayoutAmount: null,
+                            lastPaymentDate: null,
+                        },
+                    },
+                    { session }
+                );
+                adminPaymentDetailsCleared = adminsResult.modifiedCount;
+            });
+        } finally {
+            await session.endSession();
+        }
+
+        // ActivityLog uses a MongoDB time-series collection, which cannot be written in a transaction.
+        const activityResult = await ActivityLog.deleteMany({});
+        deletedRecords.activityLogs = activityResult.deletedCount;
+
+        res.status(200).json({
+            status: "success",
+            message: "All local platform records were cleared. Admin accounts and site settings were preserved.",
+            data: {
+                deletedRecords,
+                adminPaymentDetailsCleared,
+            },
         });
     })
 );
