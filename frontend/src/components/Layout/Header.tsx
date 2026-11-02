@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import { appUpdateService } from '../../services/appUpdateService';
 import { useMobileMenu } from '../../contexts/MobileMenuContext';
-import { Menu, Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun, Clock3 } from 'lucide-react';
+import { Menu, Bell, Search, ChevronDown, LogOut, Settings, User, Moon, Sun, Clock3, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { notificationService, type AppNotification } from '../../services/notificationService';
 
@@ -20,8 +21,15 @@ export const Header: React.FC = () => {
   const [dark, setDark] = useState(true);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [notifications, setNotifications] = useState<AppNotification[]>(notificationService.getAll());
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   React.useEffect(() => notificationService.subscribe(setNotifications), []);
+  useEffect(() => appUpdateService.subscribe(() => {
+    setUpdateError('');
+    setUpdateAvailable(true);
+  }), []);
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(new Date()), 1000);
     return () => window.clearInterval(timer);
@@ -33,6 +41,17 @@ export const Header: React.FC = () => {
   const nigeriaTime = new Intl.DateTimeFormat('en-NG', {
     timeZone: 'Africa/Lagos', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
   }).format(currentTime);
+
+  const applyUpdate = async () => {
+    setUpdating(true);
+    setUpdateError('');
+    try {
+      await appUpdateService.apply();
+    } catch {
+      setUpdateError('Update failed. Check your connection and try again.');
+      setUpdating(false);
+    }
+  };
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -104,6 +123,22 @@ export const Header: React.FC = () => {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-1 sm:gap-2">
+        {updateAvailable && (
+          <div className="flex flex-col items-end">
+            <button
+              type="button"
+              onClick={() => void applyUpdate()}
+              disabled={updating}
+              title={updateError || 'A new version is available'}
+              aria-label={updateError || 'Update app'}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-cyan-400/40 bg-cyan-400/10 px-2 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-400/20 disabled:cursor-wait disabled:opacity-70 sm:px-3 sm:text-sm"
+            >
+              <RefreshCw className={`h-4 w-4 ${updating ? 'animate-spin' : ''}`} />
+              <span>{updating ? 'Updating...' : 'Update app'}</span>
+            </button>
+            {updateError && <span role="alert" className="absolute right-16 top-full mt-1 max-w-56 text-right text-[10px] text-rose-300">{updateError}</span>}
+          </div>
+        )}
         <div className="hidden items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-slate-300 sm:flex" aria-label={`Current Nigeria time ${nigeriaTime}, ${nigeriaDate}`}>
           <Clock3 className="h-4 w-4 shrink-0 text-indigo-300" />
           <div className="leading-tight">
