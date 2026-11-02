@@ -16,6 +16,7 @@ import {
   type RequestReport,
 } from '../../services/reportService';
 import { GlassCard } from '../UI/GlassCard';
+import { notificationService } from '../../services/notificationService';
 import { formatNigeriaDate, formatNigeriaDateTime } from '../../utils/dateTime';
 import { EVALUATION_CATEGORIES } from '../../constants/reportCategories';
 
@@ -104,6 +105,11 @@ export const RaterReportReviewPage: React.FC = () => {
     };
     void fetch();
   }, [loadReports]);
+
+  useEffect(
+    () => notificationService.subscribeReportsSubmitted(() => { void loadReports(); }),
+    [loadReports],
+  );
 
   const changeReview = async (
     report: RequestReport,

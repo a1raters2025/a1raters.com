@@ -69,3 +69,8 @@ export const emitPaymentDetailsChanged = (userId) => {
   if (!io || !userId) return;
   io.to(`user:${userId}`).emit('payment-details:changed');
 };
+
+export const emitReportsSubmitted = () => {
+  if (!io) return;
+  io.to('role:admin').emit('reports:submitted');
+};

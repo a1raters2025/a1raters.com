@@ -16,6 +16,7 @@ let socket: Socket | null = null;
 let socketToken: string | null = null;
 let listeners: Array<(items: AppNotification[]) => void> = [];
 let paymentDetailsListeners: Array<() => void> = [];
+let reportsSubmittedListeners: Array<() => void> = [];
 
 const getStorageKey = () => {
   try {
@@ -49,15 +50,23 @@ export const notificationService = {
     this.disconnect();
     socketToken = token;
     socket = io(SOCKET_URL, { transports: ['websocket', 'polling'], auth: { token } });
+    let hasConnected = false;
     socket.on('admin:update', (incoming: Omit<AppNotification, 'read'>) => {
       const item = { ...incoming, read: false };
       publish([item, ...read()].slice(0, 100));
+    });
+    socket.on('reports:submitted', () => {
+      reportsSubmittedListeners.forEach(listener => listener());
     });
     socket.on('payment-details:changed', () => {
       paymentDetailsListeners.forEach(listener => listener());
     });
     socket.on('connect', () => {
       paymentDetailsListeners.forEach(listener => listener());
+      if (hasConnected) {
+        reportsSubmittedListeners.forEach(listener => listener());
+      }
+      hasConnected = true;
     });
   },
   getAll: read,
@@ -65,6 +74,10 @@ export const notificationService = {
   subscribePaymentDetailsChanged(listener: () => void) {
     paymentDetailsListeners.push(listener);
     return () => { paymentDetailsListeners = paymentDetailsListeners.filter(current => current !== listener); };
+  },
+  subscribeReportsSubmitted(listener: () => void) {
+    reportsSubmittedListeners.push(listener);
+    return () => { reportsSubmittedListeners = reportsSubmittedListeners.filter(current => current !== listener); };
   },
   markAllRead() { publish(read().map(item => ({ ...item, read: true }))); },
   markRead(id: string) { publish(read().map(item => item.id === id ? { ...item, read: true } : item)); },

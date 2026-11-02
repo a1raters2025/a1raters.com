@@ -5,7 +5,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import { User } from "../models/userSchema.js";
 import AppError from "../errors/AppError.js";
-import { emitAdminUpdate } from "../utils/socket.js";
+import { emitAdminUpdate, emitReportsSubmitted } from "../utils/socket.js";
 
 const LATE_DEADLINE_UTC_HOUR = 9;
 const LATE_PENALTY_AMOUNT = 10000;
@@ -257,6 +257,10 @@ export const bulkCreateReports = async (req, res, next) => {
     const insertedIndexes = new Set(
       Object.keys(writeResult?.upsertedIds || {}).map(Number),
     );
+
+    if (insertedIndexes.size > 0) {
+      emitReportsSubmitted();
+    }
 
     submittedReports.forEach((report) => {
       const reportIndex = reports.findIndex((entry) => entry.submissionId === report.submissionId);
