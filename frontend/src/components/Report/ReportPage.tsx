@@ -240,9 +240,11 @@ export const ReportPage: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">
                   {isAdmin ? 'Email Address' : 'Client Account Email'}
+                  <span className="ml-1 text-rose-300" aria-hidden="true">*</span>
                 </label>
                 <input
                   type="email"
+                  required
                   list="email-history"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -259,9 +261,12 @@ export const ReportPage: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">
                   Client Account Password{isAdmin ? ' (optional)' : ''}
+                  {!isAdmin && <span className="ml-1 text-rose-300" aria-hidden="true">*</span>}
                 </label>
                 <input
                   type="password"
+                  required={!isAdmin}
+                  minLength={isAdmin ? undefined : 6}
                   autoComplete="new-password"
                   value={clientPassword}
                   onChange={(e) => setClientPassword(e.target.value)}
