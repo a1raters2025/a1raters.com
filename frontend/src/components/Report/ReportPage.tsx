@@ -73,7 +73,7 @@ export const ReportPage: React.FC = () => {
       alert('Please fill in all fields before adding.');
       return;
     }
-    if (!isAdmin && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{6,}$/.test(clientPassword)) {
+    if (clientPassword && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{6,}$/.test(clientPassword)) {
       alert('Client password must be at least 6 characters and include uppercase, lowercase, number, and symbol.');
       return;
     }
@@ -96,7 +96,7 @@ export const ReportPage: React.FC = () => {
       raterName,
       profileName,
       email,
-      ...(!isAdmin ? { clientPassword } : {}),
+      ...(clientPassword ? { clientPassword } : {}),
       category: selectedCat ? selectedCat.name : category,
       proxy,
       status,
@@ -256,20 +256,23 @@ export const ReportPage: React.FC = () => {
                 </datalist>
               </div>
 
-              {!isAdmin && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">Client Account Password</label>
-                  <input
-                    type="password"
-                    autoComplete="new-password"
-                    value={clientPassword}
-                    onChange={(e) => setClientPassword(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none transition-all placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10"
-                    placeholder="At least 6 characters with upper/lowercase, number, and symbol"
-                  />
-                  <p className="mt-1 text-xs text-slate-400">Use the existing password for a registered client. If this email is new, a client account will be created when you submit. Passwords are hashed and not saved with reports.</p>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  Client Account Password{isAdmin ? ' (optional)' : ''}
+                </label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  value={clientPassword}
+                  onChange={(e) => setClientPassword(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none transition-all placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10"
+                  placeholder="At least 6 characters with upper/lowercase, number, and symbol"
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  {isAdmin && 'Enter a password to create or verify the client account. '}
+                  Use the existing password for a registered client. If this email is new, a client account will be created when you submit. Passwords are hashed and not saved with reports.
+                </p>
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-1.5">Date task was published</label>

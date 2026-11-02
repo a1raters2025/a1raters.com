@@ -150,6 +150,14 @@ export const bulkCreateReports = async (req, res, next) => {
         if (typeof clientPassword !== "string" || !clientPassword) {
           throw new AppError("A password is required for each client account in the report batch", 400);
         }
+      }
+      if (clientPassword !== undefined) {
+        if (req.user.role !== "user" && req.user.role !== "admin") {
+          throw new AppError("Only raters and admins can register client accounts through report submission", 403);
+        }
+        if (typeof clientPassword !== "string" || !clientPassword) {
+          throw new AppError("A client password must be provided when registering a client account", 400);
+        }
         const email = typeof report.email === "string" ? report.email.trim().toLowerCase() : "";
         const existingEntry = clientAccounts.get(email);
         if (existingEntry && existingEntry.password !== clientPassword) {
@@ -163,8 +171,6 @@ export const bulkCreateReports = async (req, res, next) => {
             ...(clientCategories.has(report.category) ? [report.category] : []),
           ]),
         });
-      } else if (clientPassword !== undefined) {
-        throw new AppError("Only raters can register client accounts through report submission", 403);
       }
 
       const penalty = isLateSubmission(submittedAt, report.date) ? LATE_PENALTY_AMOUNT : 0;
@@ -196,7 +202,7 @@ export const bulkCreateReports = async (req, res, next) => {
           submissionId: { $in: submissionIds },
         }).distinct("submissionId").session(session));
         const newReports = reports.filter((report) => !existingSubmissionIds.has(report.submissionId));
-        if (req.user.role === "user" && newReports.length > 0) {
+        if (clientAccounts.size > 0 && newReports.length > 0) {
           const newClientAccounts = new Map();
           newReports.forEach((report) => {
             const credentials = clientAccounts.get(report.email.trim().toLowerCase());
