@@ -47,11 +47,10 @@ let userSchema = new mongoose.Schema({
     password: {
         type: String,
         required: [true, "Password field is required"],
-        minLength: [6, "Password must be at least 6 characters long"],
         validate: {
             validator: function(value) {
                 if (!value) return false;
-                if (value.startsWith("$2")) return true;
+                if (this.role === "client" || value.startsWith("$2")) return true;
 
                 return validator.isStrongPassword(value, {
                     minLength: 6,

@@ -108,8 +108,8 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
       setParsingStatus('error');
       return;
     }
-    if (!clientEmail.trim() || clientPassword.length < 6) {
-      setErrorMessage('Enter a client email and a password with at least 6 characters.');
+    if (!clientEmail.trim() || !clientPassword) {
+      setErrorMessage('Enter a client email and password.');
       setParsingStatus('error');
       return;
     }
@@ -258,9 +258,9 @@ export const AddTask: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                       {showClientPasswords ? 'Hide' : 'Show'}
                     </button>
                   </div>
-                  <input id="client-password" type={showClientPasswords ? 'text' : 'password'} required minLength={6} value={clientPassword} onChange={(e) => setClientPassword(e.target.value)} className="mb-3 w-full rounded-xl border border-white/10 bg-white/5 p-2.5 text-sm text-white outline-none focus:border-indigo-400" placeholder="Uppercase, lowercase, number and symbol" />
+                  <input id="client-password" type={showClientPasswords ? 'text' : 'password'} required value={clientPassword} onChange={(e) => setClientPassword(e.target.value)} className="mb-3 w-full rounded-xl border border-white/10 bg-white/5 p-2.5 text-sm text-white outline-none focus:border-indigo-400" placeholder="Enter client password" />
                   <label htmlFor="confirm-client-password" className="mb-1 block text-xs text-slate-400">Confirm client password</label>
-                  <input id="confirm-client-password" type={showClientPasswords ? 'text' : 'password'} required minLength={6} value={confirmClientPassword} onChange={(e) => setConfirmClientPassword(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/5 p-2.5 text-sm text-white outline-none focus:border-indigo-400" placeholder="Re-enter client password" />
+                  <input id="confirm-client-password" type={showClientPasswords ? 'text' : 'password'} required value={confirmClientPassword} onChange={(e) => setConfirmClientPassword(e.target.value)} className="w-full rounded-xl border border-white/10 bg-white/5 p-2.5 text-sm text-white outline-none focus:border-indigo-400" placeholder="Re-enter client password" />
                 </div>
               </div>
             </GlassCard>

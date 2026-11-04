@@ -73,11 +73,6 @@ export const ReportPage: React.FC = () => {
       alert('Please fill in all fields before adding.');
       return;
     }
-    if (clientPassword && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{6,}$/.test(clientPassword)) {
-      alert('Client password must be at least 6 characters and include uppercase, lowercase, number, and symbol.');
-      return;
-    }
-
     const hasLongNumbers = (str: string) => /\d{5,}/.test(str);
 
     if (hasLongNumbers(profileName)) {
@@ -266,12 +261,11 @@ export const ReportPage: React.FC = () => {
                 <input
                   type="password"
                   required={!isAdmin}
-                  minLength={isAdmin ? undefined : 6}
                   autoComplete="new-password"
                   value={clientPassword}
                   onChange={(e) => setClientPassword(e.target.value)}
                   className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none transition-all placeholder-slate-500 focus:border-indigo-400 focus:bg-white/10"
-                  placeholder="At least 6 characters with upper/lowercase, number, and symbol"
+                  placeholder="Enter client password"
                 />
                 <p className="mt-1 text-xs text-slate-400">
                   {isAdmin && 'Enter a password to create or verify the client account. '}
