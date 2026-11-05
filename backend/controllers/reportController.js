@@ -219,7 +219,7 @@ export const bulkCreateReports = async (req, res, next) => {
               throw new AppError("This email belongs to an account that cannot be used as a client account", 409);
             }
             if (!await bcrypt.compare(credentials.password, existingAccount.password)) {
-              throw new AppError("The client email or password is incorrect", 401);
+              throw new AppError("The client email or password is incorrect", 422);
             }
             newClientAccounts.delete(email);
           }
