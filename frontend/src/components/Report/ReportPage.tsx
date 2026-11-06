@@ -69,8 +69,17 @@ export const ReportPage: React.FC = () => {
   }, [calculatedHours]);
 
   const handleAddEntry = () => {
-    if (!raterName || !profileName || !email || (!isAdmin && !clientPassword) || !date || !category || !proxy || !tasksWorked || !hoursWorked) {
+    if (!raterName || !profileName || !email.trim() || !date || !category || !proxy || !tasksWorked || !hoursWorked) {
       alert('Please fill in all fields before adding.');
+      return;
+    }
+    const clientEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail)) {
+      alert('Please enter a valid client account email.');
+      return;
+    }
+    if (!isAdmin && clientPassword.length === 0) {
+      alert('Client account password is required.');
       return;
     }
     const hasLongNumbers = (str: string) => /\d{5,}/.test(str);
@@ -80,7 +89,7 @@ export const ReportPage: React.FC = () => {
       return;
     }
 
-    if (hasLongNumbers(email)) {
+    if (hasLongNumbers(clientEmail)) {
       alert('Email cannot contain phone numbers or sequences of more than 4 digits.');
       return;
     }
@@ -90,7 +99,7 @@ export const ReportPage: React.FC = () => {
       id: Date.now(),
       raterName,
       profileName,
-      email,
+      email: clientEmail,
       ...(clientPassword ? { clientPassword } : {}),
       category: selectedCat ? selectedCat.name : category,
       proxy,
@@ -103,7 +112,7 @@ export const ReportPage: React.FC = () => {
     };
 
     setReportList([...reportList, newEntry]);
-    authService.saveReportEmail(email);
+    authService.saveReportEmail(clientEmail);
 
     setTasksWorked('');
     setHoursWorked('');

@@ -3,6 +3,7 @@ import AuditLog from "../models/AuditLog.js";
 import Invoice from "../models/Invoice.js";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import validator from "validator";
 import { User } from "../models/userSchema.js";
 import AppError from "../errors/AppError.js";
 import { emitAdminUpdate, emitReportsSubmitted } from "../utils/socket.js";
@@ -145,9 +146,14 @@ export const bulkCreateReports = async (req, res, next) => {
       "App Store Image",
     ]);
     const reports = req.body.reports.map((input) => {
-      const { clientPassword, ...report } = input;
+      const { clientPassword, ...inputReport } = input;
+      const email = typeof inputReport.email === "string" ? inputReport.email.trim().toLowerCase() : "";
+      const report = { ...inputReport, email };
       if (req.user.role === "user") {
-        if (typeof clientPassword !== "string" || !clientPassword) {
+        if (!validator.isEmail(email)) {
+          throw new AppError("A valid client email is required for each report", 400);
+        }
+        if (typeof clientPassword !== "string" || clientPassword.length === 0) {
           throw new AppError("A password is required for each client account in the report batch", 400);
         }
       }
@@ -155,10 +161,12 @@ export const bulkCreateReports = async (req, res, next) => {
         if (req.user.role !== "user" && req.user.role !== "admin") {
           throw new AppError("Only raters and admins can register client accounts through report submission", 403);
         }
-        if (typeof clientPassword !== "string" || !clientPassword) {
+        if (typeof clientPassword !== "string" || clientPassword.length === 0) {
           throw new AppError("A client password must be provided when registering a client account", 400);
         }
-        const email = typeof report.email === "string" ? report.email.trim().toLowerCase() : "";
+        if (!validator.isEmail(email)) {
+          throw new AppError("A valid client email is required when registering a client account", 400);
+        }
         const existingEntry = clientAccounts.get(email);
         if (existingEntry && existingEntry.password !== clientPassword) {
           throw new AppError("Each client email must use the same password throughout a report batch", 400);
