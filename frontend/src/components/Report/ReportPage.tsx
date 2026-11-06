@@ -9,7 +9,7 @@ import { getNigeriaDateInputValue } from '../../utils/dateTime';
 import { EVALUATION_CATEGORY_OPTIONS } from '../../constants/reportCategories';
 
 interface ReportEntry {
-  id: number;
+  id: string;
   raterName: string;
   profileName: string;
   email: string;
@@ -96,7 +96,7 @@ export const ReportPage: React.FC = () => {
 
 
     const newEntry: ReportEntry = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       raterName,
       profileName,
       email: clientEmail,
@@ -111,7 +111,7 @@ export const ReportPage: React.FC = () => {
       submissionId: crypto.randomUUID(),
     };
 
-    setReportList([...reportList, newEntry]);
+    setReportList((currentReports) => [...currentReports, newEntry]);
     authService.saveReportEmail(clientEmail);
 
     setTasksWorked('');
@@ -122,8 +122,8 @@ export const ReportPage: React.FC = () => {
     setProxy('');
   };
 
-  const removeEntry = (id: number) => {
-    setReportList(reportList.filter((r) => r.id !== id));
+  const removeEntry = (id: string) => {
+    setReportList((currentReports) => currentReports.filter((report) => report.id !== id));
   };
 
   const handleSubmitAll = async () => {
