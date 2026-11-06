@@ -59,7 +59,7 @@ export const createInvoice = async (req, res, next) => {
 
     res.status(201).json({
       status: "success",
-      message: "Invoice submitted successfully",
+      message: "Invoice submitted successfully.",
       data: invoice,
     });
   } catch (err) {
