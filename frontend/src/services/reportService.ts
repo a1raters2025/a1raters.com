@@ -388,7 +388,7 @@ export const reportService = {
     return undefined;
   },
 
-  async saveReports(reports: Omit<RequestReport, 'submissionTime'>[]): Promise<RequestReport[]> {
+  async saveReports(reports: Omit<RequestReport, 'submissionTime' | 'id'>[]): Promise<RequestReport[]> {
     const reportsForSubmission = reports.map((report) => ({
       ...report,
       submissionId: report.submissionId || crypto.randomUUID(),
